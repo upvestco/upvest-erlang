@@ -1,0 +1,19 @@
+{application, upvest,
+ [{description, "Upvest Erlang library"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib,
+    inets,
+    crypto,
+    public_key,
+    hackney,
+    jiffy
+   ]},
+  {env,[]},
+  {modules, []},
+  {licenses, ["Apache 2.0"]},
+  {links, [{"Github", "https://github.com/rpip/upvest-erlang"}]},
+  {build_tools, ["rebar3"]}
+ ]}.
