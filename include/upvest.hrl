@@ -22,7 +22,6 @@
 
 -define(NRAPI, <<"Not Returned by API">>).
 -define(V(X), maps:get(atom_to_binary(X, utf8), DecodedResult, ?NRAPI)).
-                                                %-define(PAGINATED(M), maps:update_with("page_size", fun(X) -> X end, ?DEFAULT_PAGE_SIZE, M)).
 
 %% APIVersion is the currently supported API version
 -define(API_VERSION, "1.0").
@@ -57,7 +56,10 @@
           method :: atom(),
           uri :: string() | binary(),
           headers = [] ::  proplists:list(),
-          body = #{} :: string() | binary() | map()
+          body = #{} :: string() | binary() | map(),
+          auth :: credentials(),
+          base_url = ?DEFAULT_BASE_URL :: string(),
+          options = [] :: proplists:list()
          }).
 
 %% OAuth (The OAuth2 Key Authentication) is used to authenticate requests on behalf of a user
@@ -78,9 +80,10 @@
 -type credentials()  :: #keyauth{} | #oauth{}.
 
 -record(client, {
-          credentials :: credentials(),
+          auth :: credentials(),
           base_url = ?DEFAULT_BASE_URL :: string(),
           headers = ?DEFAULT_HEADERS :: headers(),
+          %% options to be passed to the HTTP client
           options = [] :: proplists:list()
          }).
 
@@ -166,9 +169,10 @@
 
 -type upvest_object() :: #upvest_user{} | #upvest_asset{} | #upvest_wallet{} | #upvest_transaction{}.
 
--record(upvest_list, {previous :: url(), next :: url(), results = [] :: [upvest_object()]}).
+-record(paginated_list, {previous :: url(), next :: url(), results = [] :: [upvest_object()]}).
+-type paginated_list() :: #paginated_list{}.
 
--type result() :: {ok, binary() | upvest_object | upvest_list } | error().
+-type result() :: {ok, binary() | upvest_object | paginated_list } | error().
 
 -type upvest_object_name() :: user | asset | wallet | transaction.
 

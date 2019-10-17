@@ -9,21 +9,20 @@
 
 -include("upvest.hrl").
 
-%% Auth Credentials
 -export([
+         build_uri/2,
+         %% Auth Credentials
          keyauth_client/3,
-         oauth_client/4
-        ]).
+         oauth_client/4,
 
-%% Tenancy API
--export([
+         %% Tenancy API
          get_users/2,
          get_users/3,
          all_users/1,
          all_users/2
+         %% Clientele API
         ]).
 
-%% Clientele API
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Public API
@@ -37,7 +36,7 @@
 -spec keyauth_client(string(), string(), string()) -> client().
 
 keyauth_client(Key, Secret, Passphrase) ->
-  #client{credentials = #keyauth{key = Key, secret = Secret, passphrase = Passphrase}}.
+  #client{auth = #keyauth{key = Key, secret = Secret, passphrase = Passphrase}}.
 
 %% @doc Takes a client ID, client secret, username and a password.
 %%      Returns a client with credentials that can be used for OAuth authentication.
@@ -46,10 +45,10 @@ keyauth_client(Key, Secret, Passphrase) ->
                    string()) -> client().
 
 oauth_client(ClientID, ClientSecret, Username, Password) ->
-  #client{credentials = #oauth{client_id = ClientID,
-                               client_secret = ClientSecret,
-                               username = Username,
-                               password = Password}}.
+  #client{auth = #oauth{client_id = ClientID,
+                        client_secret = ClientSecret,
+                        username = Username,
+                        password = Password}}.
 
 %%%--------------------------------------------------------------------
 %%% User Management
@@ -59,7 +58,8 @@ get_users(Client, MaxCount) ->
 get_users(Client, MaxCount, Opts) ->
   Uri = build_uri(users, paginated(Opts)),
   Req = #request{method=get, uri=Uri},
-  {ok, Users} = upvest_req:get_some(users, MaxCount, Req, Client),
+  Req1 = merge_rc(Req, Client),
+  {ok, Users} = upvest_req:get_some(users, MaxCount, Req1),
   {ok, zap(Users, user)}.
 
 -spec all_users(client()) -> result().
@@ -70,11 +70,28 @@ all_users(Client) ->
 all_users(Client, Opts) ->
   Uri = build_uri(users, Opts),
   Req = #request{method=get, uri=Uri},
-  {ok, Users} = upvest_req:get_all(users, Req, Client),
+  Req1 = merge_rc(Req, Client),
+  {ok, Users} = upvest_req:get_all(users, Req1),
   {ok, zap(Users, user)}.
 
+%% merge the user-configured client configs into the request object
+merge_rc(Req, Client) ->
+  #client{auth = Cred, base_url = B, headers = H, options = Opts} = Client,
+  Req#request{
+    auth = Cred,
+    base_url = B,
+    options = Req#request.options ++ Opts,
+    headers = Req#request.headers ++ H
+   }.
+
+%% user_get(Client, Username) ->
+%%   Uri = build_uri(user, #{"username" => Username}),
+%%   Req = #request{method=get, uri=Uri},
+%%   {ok, Users} = upvest_req:run(Req, Client),
+%%   {ok, zap(Users, user)}.
+
+
 %% user_update(UserID, Fields...)
-%% user_get(UserID)
 %% user_delete(UserID)
 
 %%%--------------------------------------------------------------------
@@ -84,10 +101,10 @@ all_users(Client, Opts) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec zap(#upvest_list{}, upvest_object_name()) -> #upvest_list{}.
-zap(#upvest_list{} = L, Schema) ->
-  L#upvest_list{
-    results = [upvest_json:to_record(Schema, Object) || Object <- L#upvest_list.results]
+-spec zap(paginated_list, upvest_object_name()) -> paginated_list().
+zap(#paginated_list{} = L, Schema) ->
+  L#paginated_list{
+    results = [upvest_json:to_record(Schema, Object) || Object <- L#paginated_list.results]
    }.
 
 build_uri(users, Params) ->

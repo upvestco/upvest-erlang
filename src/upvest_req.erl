@@ -8,25 +8,22 @@
 -module(upvest_req).
 -include("upvest.hrl").
 -export([
-         request/2,
-         get_all/3,
-         get_some/4
+         request/1,
+         get_all/2,
+         get_some/3
         ]).
 
 
--spec request(request(), client()) -> result().
-request(Req, Client) ->
-    do_request(Req, Client).
+-spec request(request()) -> result().
+request(Req) ->
+    do_request(Req).
 
-do_request(Req, Client) ->
+do_request(Req) ->
     #request{method = Method, body = Body} = Req,
-    {Headers, RequestUrl} = headers_with_uri(Req, Client),
+    {Headers, RequestUrl} = headers_with_uri(Req),
     EncodedBody = upvest_json:encode(Body),
-    Options = Client#client.options,
     ?PRINT(RequestUrl),
-                                                %?PRINT(Req),
-                                                %?PRINT(Headers),
-    case hackney:Method(RequestUrl, Headers, EncodedBody, Options) of
+    case hackney:Method(RequestUrl, Headers, EncodedBody, Req#request.options) of
         {ok, Status, _RespHeaders, ClientRef} when Status >= 200 andalso Status < 300 ->
             {ok, Body1} = hackney:body(ClientRef),
             DecodedBody = upvest_json:decode(Body1),
@@ -34,7 +31,7 @@ do_request(Req, Client) ->
             {ok, DecodedBody};
         {ok, 302, RespHeaders, _ClientRef} ->
             RedirectUrl = proplists:get_value(<<"Location">>, RespHeaders),
-            do_request(Req#request{uri=RedirectUrl}, Client);
+            do_request(Req#request{uri=RedirectUrl});
         {ok, 404, _RespHeaders, ClientRef} ->
             {error, hackney:body(ClientRef)};
         {ok, Status, _RespHeaders, ClientRef} ->
@@ -45,64 +42,64 @@ do_request(Req, Client) ->
             {error, Reason}
     end.
 
--spec get_some(atom(), pos_integer(), request(), client()) -> {ok, #upvest_list{}} | error().
-get_some(Scope, MaxCount, Req, Client) ->
-    do_get_some(Scope, MaxCount, 0, Req, Client, true, []).
-do_get_some(_Scope, _MaxCount, _TotalCount, _Req, _Client, false, Acc) ->
-    {ok, fold_paginated_results(Acc)};
-do_get_some(Scope, MaxCount, TotalCount, Req, Client, true, Acc) ->
-    case request(Req, Client) of
+-spec get_some(atom(), pos_integer(), request()) -> {ok, paginated_list()} | error().
+get_some(Scope, MaxCount, Req) ->
+    do_get_some(Scope, MaxCount, 0, Req, true, []).
+do_get_some(_Scope, _MaxCount, _TotalCount, _Req, false, Acc) ->
+    {ok, fold_paginated(Acc)};
+do_get_some(Scope, MaxCount, TotalCount, Req, true, Acc) ->
+    case request(Req) of
         {ok, Resp} ->
             HasMore = has_more(Resp),
             case (MaxCount =< TotalCount) and HasMore of
                 true ->
                     NextURI = maps:get(<<"next">>, Resp),
-                    Req1 = build_paginated_req(Scope, NextURI, Req),
-                    Count = length(Resp#upvest_list.results),
-                    do_get_some(Scope, MaxCount, TotalCount + Count, Req1, Client, HasMore, [Resp|Acc]);
+                    Req1 = paginated_req(Scope, NextURI, Req),
+                    Count = length(Resp#paginated_list.results),
+                    do_get_some(Scope, MaxCount, TotalCount + Count, Req1, HasMore, [Resp|Acc]);
                 _ ->
-                    do_get_some(Scope, MaxCount, TotalCount, Req, Client, false, [Resp|Acc])
+                    do_get_some(Scope, MaxCount, TotalCount, Req, false, [Resp|Acc])
             end;
         {error, _} = Error ->
             Error
     end.
 
--spec get_all(atom(), request(), client()) -> {ok, #upvest_list{}} | error().
-get_all(Scope, Req, Client) ->
-    do_get_all(Scope, Req, Client, true, []).
-do_get_all(_Scope, _Req, _Client, false, Acc) ->
-    {ok, fold_paginated_results(Acc)};
-do_get_all(Scope, Req, Client, true, Acc) ->
-    case request(Req, Client) of
+-spec get_all(atom(), request()) -> {ok, paginated_list() | error()}.
+get_all(Scope, Req) ->
+    do_get_all(Scope, Req, true, []).
+do_get_all(_Scope, _Req, false, Acc) ->
+    {ok, fold_paginated(Acc)};
+do_get_all(Scope, Req, true, Acc) ->
+    case request(Req) of
         {ok, Resp} ->
             HasMore = has_more(Resp),
             case HasMore of
                 true ->
                     NextURI = maps:get(<<"next">>, Resp),
-                    Req1 = build_paginated_req(Scope, NextURI, Req),
-                    do_get_all(Scope, Req1, Client, HasMore, [Resp|Acc]);
+                    Req1 = paginated_req(Scope, NextURI, Req),
+                    do_get_all(Scope, Req1, HasMore, [Resp|Acc]);
                 _ ->
-                    do_get_all(Scope, Req, Client, false, [Resp|Acc])
+                    do_get_all(Scope, Req, false, [Resp|Acc])
             end;
         {error, _} = Error ->
             Error
     end.
 
--spec fold_paginated_results([#upvest_list{}]) -> #upvest_list{}.
-fold_paginated_results(Objects) ->
+-spec fold_paginated([paginated_list()]) -> paginated_list().
+fold_paginated(Objects) ->
     Objects0 = lists:reverse(Objects),
     Accl = lists:foldl(
-             fun(X, #upvest_list{results=R} = Acc0) ->
+             fun(X, #paginated_list{results=R} = Acc0) ->
                      N = maps:get(<<"next">>, X),
                      P = maps:get(<<"previous">>, X),
                      R1 = maps:get(<<"results">>, X),
-                     Acc0#upvest_list{next=N, previous=P, results=[R1|R]}
-             end, #upvest_list{}, Objects0),
-    R2 = lists:flatten(Accl#upvest_list.results),
-    Accl#upvest_list{results=lists:reverse(R2)}.
+                     Acc0#paginated_list{next=N, previous=P, results=[R1|R]}
+             end, #paginated_list{}, Objects0),
+    R2 = lists:flatten(Accl#paginated_list.results),
+    Accl#paginated_list{results=lists:reverse(R2)}.
 
--spec build_paginated_req(atom(), url(), request()) -> request().
-build_paginated_req(Scope, NextURI, Req) ->
+-spec paginated_req(atom(), url(), request()) -> request().
+paginated_req(Scope, NextURI, Req) ->
     ParsedURI = upvest_utils:parse_uri(NextURI),
     MQuery = maps:from_list(ParsedURI#uri.query),
     URI = upvest:build_uri(Scope, MQuery),
@@ -115,10 +112,10 @@ has_more(M) ->
 versioned_url(Path) ->
     ?API_VERSION ++ Path.
 
-headers_with_uri(Req, Client) ->
-    AuthHeaders  = authenticate(Req, Client),
-    Headers = lists:flatten([AuthHeaders, Client#client.headers | ?DEFAULT_HEADERS]),
-    FullUri = ?DEFAULT_BASE_URL ++ versioned_url(Req#request.uri),
+headers_with_uri(#request{headers=H, uri=U} = Req) ->
+    AuthHeaders  = authenticate(Req),
+    Headers = lists:flatten([AuthHeaders, H | ?DEFAULT_HEADERS]),
+    FullUri = ?DEFAULT_BASE_URL ++ versioned_url(U),
     {Headers, FullUri}.
 
 format_error(ErrCode, Body) ->
@@ -142,8 +139,8 @@ format_error(ErrCode, ErrCodeMeaning, Body) ->
                   message = ?V(message),
                   details   = ?V(details)}.
 
--spec authenticate(request(), client()) -> proplists:list().
-authenticate(#request{} = Req, #client{credentials = #keyauth{} = Cred}) ->
+-spec authenticate(request()) -> proplists:list().
+authenticate(#request{auth = #keyauth{} = Cred} = Req) ->
     #request{method = Method, uri = Uri, body = Body} = Req,
     #keyauth{secret = Secret, key = Key, passphrase = Passphrase} = Cred,
     Timestamp = upvest_utils:timestamp(),

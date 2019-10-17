@@ -40,5 +40,5 @@ list_users() ->
     Passphrase = os:getenv("API_PASSPHRASE"),
     Client = upvest:keyauth_client(Key, Secret, Passphrase),
     {ok, Users} = upvest:get_users(Client, 200),
-    {ok, AllUsers} = upvest:all_users(Client),
+    {ok, _AllUsers} = upvest:all_users(Client),
     ?PRINT(Users).

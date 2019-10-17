@@ -31,7 +31,7 @@ hex(N) when N < 16 ->
 %% Returns either the URI or an error term.
 %%
 %% @end
--spec parse_uri(string()) -> #uri{} | {error, Reason :: term()}.
+-spec parse_uri(string()) -> url() | {error, Reason :: term()}.
 parse_uri(URI) ->
     case http_uri:parse(URI, [{scheme_defaults, http_uri:scheme_defaults()}]) of
         {ok, {Scheme, UserInfo, Host, Port, Path, Query}} ->
