@@ -59,7 +59,7 @@ elvis:
 travis: test coveralls
 
 shell:
-	@$(REBAR3) shell
+	@$(REBAR3) as shell shell
 
 $(REBAR3):
 	curl -Lo rebar3 $(REBAR3_URL) || wget $(REBAR3_URL)
