@@ -18,10 +18,15 @@ upvest_test_() ->
       fun setup/0,
       fun teardown/1,
       [
-       %% {"List users",
-       %%  {timeout, 60, fun list_users/0}},
-       %% {"Get user", fun get_user/0},
-       {"Create user", {timeout, 60, fun create_user/0}}
+       %% User
+       {"List users",
+        {timeout, 60, fun list_users/0}},
+       {"Get user", fun get_user/0},
+       {"Create user", {timeout, 60, fun create_user/0}},
+       %% Asset
+       {"List assets",
+        {timeout, 60, fun list_assets/0}},
+       {"Get asset", fun get_asset/0},
       ]
      }
     }.
@@ -59,11 +64,25 @@ list_users() ->
     {ok, AllUsers} = upvest:all_users(Cred),
     ?assert(is_list(AllUsers#paginated_list.results)).
 
-get_user() ->
+%%%-------------------------------------------------------------------
+%%% Assets
+%%%-------------------------------------------------------------------
+list_assets() ->
     Cred = keyauth_credentials(),
-    {ok, Users} = upvest:get_users(Cred, 200),
-    User = lists:nth(1, Users#paginated_list.results),
-    {ok, User} = upvest:get_user(Cred, maps:get(<<"username">>, User)).
+
+    {ok, Assets} = upvest:get_assets(Cred, 200),
+    ?assert(length(Assets#paginated_list.results) < 200),
+    ?assert(is_list(Assets#paginated_list.results)),
+
+    {ok, AllAssets} = upvest:all_assets(Cred),
+    ?assert(is_list(AllAssets#paginated_list.results)).
+
+get_asset() ->
+    Cred = keyauth_credentials(),
+    {ok, Assets} = upvest:get_assets(Cred, 200),
+    Asset = lists:nth(1, Assets#paginated_list.results),
+    {ok, Asset} = upvest:get_asset(Cred, maps:get(<<"id">>, Asset)).
+
 
 %%%-------------------------------------------------------------------
 %%% Miscellaneous

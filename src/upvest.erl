@@ -18,12 +18,17 @@
          %% Tenancy API
          get_user/2,
          get_users/2,
-         get_users/3,
          all_users/1,
          all_users/2,
          create_user/3,
          change_user_password/4,
-         delete_user/2
+         delete_user/2,
+
+         get_asset/2,
+         get_assets/2,
+         get_assets/3,
+         all_assets/1,
+         all_assets/2
          %% Clientele API
         ]).
 
@@ -104,6 +109,28 @@ delete_user(Cred, Username) ->
 %%%--------------------------------------------------------------------
 %%% Asset Management
 %%%--------------------------------------------------------------------
+-spec get_assets(credentials(), pos_integer()) -> result().
+get_assets(Cred, Limit) ->
+    get_assets(Cred, Limit, #{}).
+
+-spec get_assets(credentials(), pos_integer(), options()) -> result().
+get_assets(Cred, Limit, Opts) ->
+    Uri = build_uri(assets, paginated(Opts)),
+    request_all(Cred, assets, get, Uri, Limit).
+
+-spec all_assets(credentials()) -> result().
+all_assets(Cred) ->
+    all_assets(Cred, paginated(#{})).
+
+-spec all_assets(credentials(), options()) -> result().
+all_assets(Cred, Opts) ->
+    Uri = build_uri(assets, Opts),
+    request_all(Cred, assets, get, Uri).
+
+-spec get_asset(credentials(), string()) -> result().
+get_asset(Cred, AssetID) ->
+    Uri = build_uri(asset, AssetID),
+    request(Cred, get, Uri).
 
 %%%===================================================================
 %%% Internal functions
@@ -138,6 +165,9 @@ build_uri(user, Username) ->
 build_uri(users, Params) ->
     Url = "/tenancy/users/",
     maybe_append_qs_params(Url, Params);
+build_uri(asset, AssetID) ->
+    Url = "/assets/~s",
+    io_lib:format(Url, [to_str(AssetID)]);
 build_uri(assets, Params) ->
     Url = "/assets/",
     maybe_append_qs_params(Url, Params);
