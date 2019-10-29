@@ -23,17 +23,22 @@ do_request(Req) ->
     {Headers, RequestUrl} = headers_with_uri(Req),
     EncodedBody = upvest_json:encode(Body),
     ?PRINT(RequestUrl),
+    ?PRINT(Headers),
+    ?PRINT(Body),
     case hackney:Method(RequestUrl, Headers, EncodedBody, Req#request.options) of
+                                                % delete endpoint returns 204 No Content
+        {ok, Status, _RespHeaders, _ClientRef} when Status =:= 204 ->
+            {ok, no_content};
         {ok, Status, _RespHeaders, ClientRef} when Status >= 200 andalso Status < 300 ->
             {ok, Body1} = hackney:body(ClientRef),
             DecodedBody = upvest_json:decode(Body1),
-            ?PRINT(maps:get(<<"next">>, DecodedBody)),
             {ok, DecodedBody};
         {ok, 302, RespHeaders, _ClientRef} ->
             RedirectUrl = proplists:get_value(<<"Location">>, RespHeaders),
             do_request(Req#request{uri=RedirectUrl});
         {ok, 404, _RespHeaders, ClientRef} ->
-            {error, hackney:body(ClientRef)};
+            {ok, RespBody} = hackney:body(ClientRef),
+            {error, RespBody};
         {ok, Status, _RespHeaders, ClientRef} ->
             {ok, RespBody} = hackney:body(ClientRef),
             Error = format_error(Status, RespBody),
@@ -43,43 +48,43 @@ do_request(Req) ->
     end.
 
 -spec get_some(atom(), pos_integer(), request()) -> {ok, paginated_list()} | error().
-get_some(Scope, MaxCount, Req) ->
-    do_get_some(Scope, MaxCount, 0, Req, true, []).
-do_get_some(_Scope, _MaxCount, _TotalCount, _Req, false, Acc) ->
+get_some(Resource, Limit, Req) ->
+    do_get_some(Resource, Limit, 0, Req, true, []).
+do_get_some(_Resource, _Limit, _TotalCount, _Req, false, Acc) ->
     {ok, fold_paginated(Acc)};
-do_get_some(Scope, MaxCount, TotalCount, Req, true, Acc) ->
+do_get_some(Resource, Limit, TotalCount, Req, true, Acc) ->
     case request(Req) of
         {ok, Resp} ->
             HasMore = has_more(Resp),
-            case (MaxCount =< TotalCount) and HasMore of
+            case (Limit =< TotalCount) and HasMore of
                 true ->
                     NextURI = maps:get(<<"next">>, Resp),
-                    Req1 = paginated_req(Scope, NextURI, Req),
+                    Req1 = paginated_req(Resource, NextURI, Req),
                     Count = length(Resp#paginated_list.results),
-                    do_get_some(Scope, MaxCount, TotalCount + Count, Req1, HasMore, [Resp|Acc]);
+                    do_get_some(Resource, Limit, TotalCount + Count, Req1, HasMore, [Resp|Acc]);
                 _ ->
-                    do_get_some(Scope, MaxCount, TotalCount, Req, false, [Resp|Acc])
+                    do_get_some(Resource, Limit, TotalCount, Req, false, [Resp|Acc])
             end;
         {error, _} = Error ->
             Error
     end.
 
 -spec get_all(atom(), request()) -> {ok, paginated_list() | error()}.
-get_all(Scope, Req) ->
-    do_get_all(Scope, Req, true, []).
-do_get_all(_Scope, _Req, false, Acc) ->
+get_all(Resource, Req) ->
+    do_get_all(Resource, Req, true, []).
+do_get_all(_Resource, _Req, false, Acc) ->
     {ok, fold_paginated(Acc)};
-do_get_all(Scope, Req, true, Acc) ->
+do_get_all(Resource, Req, true, Acc) ->
     case request(Req) of
         {ok, Resp} ->
             HasMore = has_more(Resp),
             case HasMore of
                 true ->
                     NextURI = maps:get(<<"next">>, Resp),
-                    Req1 = paginated_req(Scope, NextURI, Req),
-                    do_get_all(Scope, Req1, HasMore, [Resp|Acc]);
+                    Req1 = paginated_req(Resource, NextURI, Req),
+                    do_get_all(Resource, Req1, HasMore, [Resp|Acc]);
                 _ ->
-                    do_get_all(Scope, Req, false, [Resp|Acc])
+                    do_get_all(Resource, Req, false, [Resp|Acc])
             end;
         {error, _} = Error ->
             Error
@@ -99,10 +104,10 @@ fold_paginated(Objects) ->
     Accl#paginated_list{results=lists:reverse(R2)}.
 
 -spec paginated_req(atom(), url(), request()) -> request().
-paginated_req(Scope, NextURI, Req) ->
+paginated_req(Resource, NextURI, Req) ->
     ParsedURI = upvest_utils:parse_uri(NextURI),
     MQuery = maps:from_list(ParsedURI#uri.query),
-    URI = upvest:build_uri(Scope, MQuery),
+    URI = upvest:build_uri(Resource, MQuery),
     Req#request{uri=URI}.
 
 has_more(M) ->
@@ -133,11 +138,18 @@ format_error(ErrCode, Body) ->
 format_error(ErrCode, ErrCodeMeaning, Body) ->
     ?PRINT(Body),
     PreDecoded = upvest_json:decode(Body),
-    DecodedResult = proplists:get_value(<<"error">>, PreDecoded),
+    DecodedResult = maybe_get_key(<<"error">>, PreDecoded, <<"details">>),
     #upvest_error{type    = ErrCodeMeaning,
                   http_error_code = ErrCode,
                   message = ?V(message),
                   details   = ?V(details)}.
+
+-spec maybe_get_key(term(), map(), term()) -> term().
+maybe_get_key(Key, Map, Alternate) ->
+    case catch(maps:get(Key, Map)) of
+        {'EXIT', {{badkey, Key}, _}} -> maps:get(Alternate, Map);
+        Val -> Val
+    end.
 
 -spec authenticate(request()) -> proplists:list().
 authenticate(#request{auth = #keyauth{} = Cred} = Req) ->
@@ -150,7 +162,7 @@ authenticate(#request{auth = #keyauth{} = Cred} = Req) ->
     Message = io_lib:format("~w~s~s~s", [Timestamp, Method1, VersionedPath, EncodedBody]),
     Message1 = string:join(Message, ""),
     Signature = upvest_utils:generate_signature(Secret, Message1),
-    [{<<"Content-Type">>, "application/json"},
+    [{<<"Content-Type">>, <<"application/json">>},
      {<<"X-UP-API-Key">>, Key},
      {<<"X-UP-API-Signature">>, Signature},
      {<<"X-UP-API-Timestamp">>,  Timestamp},
