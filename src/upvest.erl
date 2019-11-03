@@ -41,7 +41,13 @@
          create_wallet/5,
          sign_wallet/4,
          sign_wallet/5,
-         sign_wallet/6
+         sign_wallet/6,
+
+         get_transaction/3,
+         get_transactions/3,
+         get_transactions/4,
+         all_transactions/2,
+         all_transactions/3
         ]).
 
 
@@ -247,6 +253,33 @@ sign_wallet(Cred, WalletID, Password, ToSign, InputFormat, OutputFormat) ->
      },
     request(Cred, post, Uri, Body).
 
+
+%%%===================================================================
+%%% Transaction Management
+%%%===================================================================
+-spec get_transactions(credentials(), binary(), pos_integer()) -> result().
+get_transactions(Cred, WalletID, Limit) ->
+    get_transactions(Cred, WalletID, Limit, #{}).
+
+-spec get_transactions(credentials(), binary(), pos_integer(), options()) -> result().
+get_transactions(Cred, WalletID, Limit, Opts) ->
+    Uri = build_uri(transactions, WalletID, Opts),
+    request_all(Cred, transactions, get, Uri, Limit).
+
+-spec all_transactions(credentials(), binary()) -> result().
+all_transactions(Cred, WalletID) ->
+    all_transactions(Cred, WalletID, #{}).
+
+-spec all_transactions(credentials(), binary(), options()) -> result().
+all_transactions(Cred, WalletID, Opts) ->
+    Uri = build_uri(transactions, WalletID, paginated(Opts)),
+    request_all(Cred, transactions, get, Uri).
+
+-spec get_transaction(credentials(), binary(), binary()) -> result().
+get_transaction(Cred, WalletID, TxID) ->
+    Uri = build_uri(transaction, WalletID, TxID),
+    request(Cred, get, Uri).
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -286,9 +319,6 @@ build_uri(asset, AssetID) ->
 build_uri(assets, Params) ->
     Url = "/assets/",
     maybe_append_qs_params(Url, Params);
-build_uri(transactions, Params) ->
-    Url = "/kms/wallets/~s/transactions/",
-    maybe_append_qs_params(Url, Params);
 
 build_uri(wallet, WalletID) ->
     Url = "/kms/wallets/~s",
@@ -299,6 +329,17 @@ build_uri(wallets, Params) ->
 build_uri(sign_wallet, WalletID) ->
     Url = "/kms/wallets/%s/sign",
     io_lib:format(Url, [upvest_utils:to_str(WalletID)]).
+
+build_uri(transactions, WalletID, Params) ->
+    Url = "/kms/wallets/~s/transactions/",
+    io_lib:format(Url, [upvest_utils:to_str(WalletID)]),
+    maybe_append_qs_params(Url, Params);
+
+build_uri(transaction, WalletID, TxID) ->
+    Url = "/kms/wallets/~s/transactions/~s",
+    TxID1 = upvest_utils:to_str(TxID),
+    WalletID1 = upvest_utils:to_str(WalletID),
+    io_lib:format(Url, [WalletID1, TxID1]).
 
 maybe_append_qs_params(Url, Params) ->
     case maps:size(Params) > 0 of
