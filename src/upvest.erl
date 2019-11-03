@@ -35,7 +35,13 @@
          get_wallets/2,
          get_wallets/3,
          all_wallets/1,
-         all_wallets/2
+         all_wallets/2,
+         create_wallet/3,
+         create_wallet/4,
+         create_wallet/5,
+         sign_wallet/4,
+         sign_wallet/5,
+         sign_wallet/6
         ]).
 
 
@@ -103,7 +109,6 @@ create_user(Cred, Username, Password) ->
              <<"username">> => upvest_utils:to_bin(Username),
              <<"password">> => upvest_utils:to_bin(Password)
             },
-    ?PRINT(Body),
     request(Cred, post, Uri, Body).
 
 -spec delete_user(credentials(), string()) -> result().
@@ -139,7 +144,7 @@ get_asset(Cred, AssetID) ->
     request(Cred, get, Uri).
 
 %%%===================================================================
-%%% Wallet
+%%% Wallet Management
 %%%===================================================================
 -spec get_wallets(credentials(), pos_integer()) -> result().
 get_wallets(Cred, Limit) ->
@@ -163,6 +168,84 @@ all_wallets(Cred, Opts) ->
 get_wallet(Cred, Username) ->
     Uri = build_uri(wallet, Username),
     request(Cred, get, Uri).
+
+%% @doc Takes valid credentials, a string representing a user's password
+%%      and the asset ID.
+%%      Returns <code>{ok, Wallet}</code> where <code>Wallet</code> is the
+%%      decoded JSON representation of Upvest's response.
+%% @end
+-spec create_wallet(credentials(), binary(), binary()) -> result().
+create_wallet(Cred, Password, AssetID) ->
+    Uri = build_uri(wallets, #{}),
+    Body = #{
+      <<"password">> => upvest_utils:to_bin(Password),
+      <<"asset_id">> => upvest_utils:to_bin(AssetID)
+     },
+    request(Cred, post, Uri, Body).
+
+%% @doc Takes valid credentials, a string representing a user's password,
+%%      the asset ID and wallet type.
+%%      Returns <code>{ok, Wallet}</code> where <code>Wallet</code> is the
+%%      decoded JSON representation of Upvest's response.
+%% @end
+-spec create_wallet(credentials(), binary(), binary(), binary()) -> result().
+create_wallet(Cred, Password, AssetID, Type) ->
+    Uri = build_uri(wallets, #{}),
+    Body = #{
+      <<"password">> => upvest_utils:to_bin(Password),
+      <<"asset_id">> => upvest_utils:to_bin(AssetID),
+      <<"type">> => upvest_utils:to_bin(Type)
+     },
+    request(Cred, post, Uri, Body).
+
+%% @doc Takes valid credentials, a string representing a user's password,
+%%      the asset ID, wallet type and the index type.
+%%      Returns <code>{ok, Wallet}</code> where <code>Wallet</code> is the
+%%      decoded JSON representation of Upvest's response.
+%% @end
+-spec create_wallet(credentials(), binary(), binary(), binary(), binary()) -> result().
+create_wallet(Cred, Password, AssetID, Type, Index) ->
+    Uri = build_uri(wallets, #{}),
+    Body = #{
+      <<"password">> => upvest_utils:to_bin(Password),
+      <<"asset_id">> => upvest_utils:to_bin(AssetID),
+      <<"type">> => upvest_utils:to_bin(Type),
+      <<"index">> => upvest_utils:to_bin(Index)
+     },
+    request(Cred, post, Uri, Body).
+
+-spec sign_wallet(credentials(), binary(), binary(), binary()) -> result().
+sign_wallet(Cred, WalletID, Password, ToSign) ->
+    Uri = build_uri(sign_wallets, WalletID),
+    Body = #{
+      <<"wallets">> => upvest_utils:to_bin(WalletID),
+      <<"password">> => upvest_utils:to_bin(Password),
+      <<"to_sign">> => upvest_utils:to_bin(ToSign)
+     },
+    request(Cred, post, Uri, Body).
+
+-spec sign_wallet(credentials(), binary(), binary(), binary(), binary()) -> result().
+sign_wallet(Cred, WalletID, Password, ToSign, InputFormat) ->
+    Uri = build_uri(sign_wallets, WalletID),
+    Body = #{
+      <<"wallets">> => upvest_utils:to_bin(WalletID),
+      <<"password">> => upvest_utils:to_bin(Password),
+      <<"to_sign">> => upvest_utils:to_bin(ToSign),
+      <<"input_format">> => upvest_utils:to_bin(InputFormat)
+     },
+    request(Cred, post, Uri, Body).
+
+-spec sign_wallet(credentials(), binary(), binary(), binary(), binary(), binary()) -> result().
+sign_wallet(Cred, WalletID, Password, ToSign, InputFormat, OutputFormat) ->
+    Uri = build_uri(sign_wallets, WalletID),
+    Body = #{
+      <<"wallets">> => upvest_utils:to_bin(WalletID),
+      <<"password">> => upvest_utils:to_bin(Password),
+      <<"to_sign">> => upvest_utils:to_bin(ToSign),
+      <<"input_format">> => upvest_utils:to_bin(InputFormat),
+      <<"output_format">> => upvest_utils:to_bin(OutputFormat)
+     },
+    request(Cred, post, Uri, Body).
 
 %%%===================================================================
 %%% Internal functions
@@ -212,7 +295,10 @@ build_uri(wallet, WalletID) ->
     io_lib:format(Url, [upvest_utils:to_str(WalletID)]);
 build_uri(wallets, Params) ->
     Url = "/kms/wallets/",
-    maybe_append_qs_params(Url, Params).
+    maybe_append_qs_params(Url, Params);
+build_uri(sign_wallet, WalletID) ->
+    Url = "/kms/wallets/%s/sign",
+    io_lib:format(Url, [upvest_utils:to_str(WalletID)]).
 
 maybe_append_qs_params(Url, Params) ->
     case maps:size(Params) > 0 of
