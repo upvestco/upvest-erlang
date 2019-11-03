@@ -8,34 +8,39 @@
 -module(upvest_req).
 -include("upvest.hrl").
 -export([
-         request/1,
          get_all/2,
-         get_some/3
+         get_some/3,
+         run/1
         ]).
 
 
--spec request(request()) -> result().
-request(Req) ->
-    do_request(Req).
+-spec run(request()) -> result().
+run(Req) ->
+    {Headers, RequestUrl} = build_headers(Req),
+    Req1 = Req#request{headers=Headers, uri=RequestUrl},
+    #request{
+       method = Method,
+       uri = Uri,
+       headers = Headers,
+       body = Body
+      } = Req1,
+    run(Method, Uri, Headers, Body).
 
-do_request(Req) ->
-    #request{method = Method, body = Body} = Req,
-    {Headers, RequestUrl} = headers_with_uri(Req),
-    EncodedBody = upvest_json:encode(Body),
-    ?PRINT(RequestUrl),
+run(Method, Uri, Headers, Body) ->
+    do_run(Method, Uri, Headers, Body).
+
+do_run(Method, Uri, Headers, Body) ->
+    EncodedBody = encode(content_type(Headers), Body),
+    ?PRINT(Uri),
     ?PRINT(Headers),
-    ?PRINT(Body),
-    case hackney:Method(RequestUrl, Headers, EncodedBody, Req#request.options) of
-                                                % delete endpoint returns 204 No Content
+    case hackney:Method(Uri, Headers, EncodedBody) of
+        %% delete endpoint returns 204 No Content
         {ok, Status, _RespHeaders, _ClientRef} when Status =:= 204 ->
             {ok, no_content};
         {ok, Status, _RespHeaders, ClientRef} when Status >= 200 andalso Status < 300 ->
             {ok, Body1} = hackney:body(ClientRef),
-            DecodedBody = upvest_json:decode(Body1),
+            DecodedBody = decode(Body1),
             {ok, DecodedBody};
-        {ok, 302, RespHeaders, _ClientRef} ->
-            RedirectUrl = proplists:get_value(<<"Location">>, RespHeaders),
-            do_request(Req#request{uri=RedirectUrl});
         {ok, 404, _RespHeaders, ClientRef} ->
             {ok, RespBody} = hackney:body(ClientRef),
             {error, RespBody};
@@ -53,7 +58,7 @@ get_some(Resource, Limit, Req) ->
 do_get_some(_Resource, _Limit, _TotalCount, _Req, false, Acc) ->
     {ok, fold_paginated(Acc)};
 do_get_some(Resource, Limit, TotalCount, Req, true, Acc) ->
-    case request(Req) of
+    case run(Req) of
         {ok, Resp} ->
             HasMore = has_more(Resp),
             case (Limit =< TotalCount) and HasMore of
@@ -75,7 +80,7 @@ get_all(Resource, Req) ->
 do_get_all(_Resource, _Req, false, Acc) ->
     {ok, fold_paginated(Acc)};
 do_get_all(Resource, Req, true, Acc) ->
-    case request(Req) of
+    case run(Req) of
         {ok, Resp} ->
             HasMore = has_more(Resp),
             case HasMore of
@@ -89,6 +94,26 @@ do_get_all(Resource, Req, true, Acc) ->
         {error, _} = Error ->
             Error
     end.
+
+%%%--------------------------------------------------------------------
+%%% Internal
+%%%--------------------------------------------------------------------
+content_type([{<<"Content-Type">>, ?URL_ENCODE_HEADER}|_] = _Headers) ->
+    urlencode;
+
+content_type(_Headers) ->
+    json.
+
+-spec encode(atom(), term()) -> binary().
+encode(urlencode, Params) ->
+    hackney_url:qs(Params);
+
+encode(_, Params) ->
+    jiffy:encode(Params).
+
+-spec decode(binary()) -> json().
+decode(Json) ->
+    jiffy:decode(Json, [return_maps]).
 
 -spec fold_paginated([paginated_list()]) -> paginated_list().
 fold_paginated(Objects) ->
@@ -117,11 +142,13 @@ has_more(M) ->
 versioned_url(Path) ->
     ?API_VERSION ++ Path.
 
-headers_with_uri(#request{headers=H, uri=U} = Req) ->
-    AuthHeaders  = authenticate(Req),
-    Headers = lists:flatten([AuthHeaders, H | ?DEFAULT_HEADERS]),
-    FullUri = ?DEFAULT_BASE_URL ++ versioned_url(U),
-    {Headers, FullUri}.
+build_headers(Req) ->
+    #request{headers=Headers, uri=U, auth = Auth, base_url = BaseURL} = Req,
+    [AuthType|_] = tuple_to_list(Auth),
+    AuthHeaders  = authenticate(AuthType, Req),
+    Headers1 = lists:flatten([AuthHeaders, Headers | ?DEFAULT_REQUEST_HEADERS]),
+    FullURL = BaseURL ++ versioned_url(U),
+    {Headers1, FullURL}.
 
 format_error(ErrCode, Body) ->
     ErrCodeMeaning = case ErrCode of
@@ -137,7 +164,7 @@ format_error(ErrCode, Body) ->
 
 format_error(ErrCode, ErrCodeMeaning, Body) ->
     ?PRINT(Body),
-    PreDecoded = upvest_json:decode(Body),
+    PreDecoded = decode(Body),
     DecodedResult = maybe_get_key(<<"error">>, PreDecoded, <<"details">>),
     #upvest_error{type    = ErrCodeMeaning,
                   http_error_code = ErrCode,
@@ -151,14 +178,14 @@ maybe_get_key(Key, Map, Alternate) ->
         Val -> Val
     end.
 
--spec authenticate(request()) -> proplists:list().
-authenticate(#request{auth = #keyauth{} = Cred} = Req) ->
-    #request{method = Method, uri = Uri, body = Body} = Req,
+-spec authenticate(atom(), request()) -> proplists:list().
+authenticate(keyauth, #request{auth = Cred} = Req) ->
+    #request{method = Method, uri = Uri, body = Body, headers = Headers} = Req,
     #keyauth{secret = Secret, key = Key, passphrase = Passphrase} = Cred,
     Timestamp = upvest_utils:timestamp(),
     VersionedPath = versioned_url(Uri),
     Method1 = string:uppercase(atom_to_list(Method)),
-    EncodedBody = upvest_json:encode(Body),
+    EncodedBody = encode(content_type(Headers), Body),
     Message = io_lib:format("~w~s~s~s", [Timestamp, Method1, VersionedPath, EncodedBody]),
     Message1 = string:join(Message, ""),
     Signature = upvest_utils:generate_signature(Secret, Message1),
@@ -167,4 +194,25 @@ authenticate(#request{auth = #keyauth{} = Cred} = Req) ->
      {<<"X-UP-API-Signature">>, Signature},
      {<<"X-UP-API-Timestamp">>,  Timestamp},
      {<<"X-UP-API-Passphrase">>,  Passphrase},
-     {<<"X-UP-API-Signed-Path">>, VersionedPath}].
+     {<<"X-UP-API-Signed-Path">>, VersionedPath}];
+
+authenticate(oauth, #request{auth = Cred, base_url = BaseURL} = _Req) ->
+    %% preflight request: get access token
+    #oauth{
+       client_id = ClientID,
+       client_secret = ClientSecret,
+       username = Username,
+       password = Password } = Cred,
+    Headers = [{<<"Content-Type">>, ?URL_ENCODE_HEADER},
+               {<<"Cache-Control">>, <<"no-cache">>}],
+    Payload = [{<<"grant_type">>, ?OAUTH_GRANT_TYPE},
+               {<<"scope">>, ?OAUTH_SCOPE},
+               {<<"client_id">>, upvest_utils:to_bin(ClientID)},
+               {<<"client_secret">>, upvest_utils:to_bin(ClientSecret)},
+               {<<"username">>, upvest_utils:to_bin(Username)},
+               {<<"password">>, upvest_utils:to_bin(Password)}],
+    FullURL = BaseURL ++ versioned_url(?OAUTH_PATH),
+    {ok, Resp} = run(post, FullURL, Headers, Payload),
+    Bearer = io_lib:format("Bearer ~s", [maps:get(<<"access_token">>, Resp)]),
+    %% now return headers with access token for actual
+    [{<<"Authorization">>, list_to_binary(Bearer)}].

@@ -4,7 +4,9 @@
 -export([
          parse_uri/1,
          timestamp/0,
-         generate_signature/2
+         generate_signature/2,
+         to_str/1,
+         to_bin/1
         ]).
 
 %% @doc Returns current timestamp in seconds
@@ -56,3 +58,19 @@ parse_path(Path) ->
 parse_query(Query) ->
     Query1 = string:split(lists:nth(2, string:split(Query, "?")), "&"),
     [list_to_tuple(string:split(X, "=")) || X <- Query1].
+
+to_str(Arg) when is_binary(Arg) ->
+    unicode:characters_to_list(Arg);
+to_str(Arg) when is_atom(Arg) ->
+    atom_to_list(Arg);
+to_str(Arg) when is_integer(Arg) ->
+    integer_to_list(Arg);
+to_str(Arg) when is_list(Arg) ->
+    Arg.
+
+to_bin(Arg) when is_list(Arg) ->
+    list_to_binary(Arg);
+to_bin(Arg) when is_atom(Arg) ->
+    atom_to_binary(Arg, latin1);
+to_bin(Arg) when is_binary(Arg) ->
+    Arg.

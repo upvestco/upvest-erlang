@@ -28,8 +28,14 @@
          get_assets/2,
          get_assets/3,
          all_assets/1,
-         all_assets/2
+         all_assets/2,
+
          %% Clientele API
+         get_wallet/2,
+         get_wallets/2,
+         get_wallets/3,
+         all_wallets/1,
+         all_wallets/2
         ]).
 
 
@@ -85,8 +91,8 @@ get_user(Cred, Username) ->
 change_user_password(Cred, Username, OldPassword, NewPassword) ->
     Uri = build_uri(user, Username),
     Body = #{
-             "old_password" => to_bin(OldPassword),
-             "new_password" => to_bin(NewPassword)
+             "old_password" => upvest_utils:to_bin(OldPassword),
+             "new_password" => upvest_utils:to_bin(NewPassword)
             },
     request(Cred, patch, Uri, Body).
 
@@ -94,8 +100,8 @@ change_user_password(Cred, Username, OldPassword, NewPassword) ->
 create_user(Cred, Username, Password) ->
     Uri = "/tenancy/users/",
     Body = #{
-             <<"username">> => to_bin(Username),
-             <<"password">> => to_bin(Password)
+             <<"username">> => upvest_utils:to_bin(Username),
+             <<"password">> => upvest_utils:to_bin(Password)
             },
     ?PRINT(Body),
     request(Cred, post, Uri, Body).
@@ -133,6 +139,32 @@ get_asset(Cred, AssetID) ->
     request(Cred, get, Uri).
 
 %%%===================================================================
+%%% Wallet
+%%%===================================================================
+-spec get_wallets(credentials(), pos_integer()) -> result().
+get_wallets(Cred, Limit) ->
+    get_wallets(Cred, Limit, #{}).
+
+-spec get_wallets(credentials(), pos_integer(), options()) -> result().
+get_wallets(Cred, Limit, Opts) ->
+    Uri = build_uri(wallets, paginated(Opts)),
+    request_all(Cred, wallets, get, Uri, Limit).
+
+-spec all_wallets(credentials()) -> result().
+all_wallets(Cred) ->
+    all_wallets(Cred, paginated(#{})).
+
+-spec all_wallets(credentials(), options()) -> result().
+all_wallets(Cred, Opts) ->
+    Uri = build_uri(wallets, Opts),
+    request_all(Cred, wallets, get, Uri).
+
+-spec get_wallet(credentials(), string()) -> result().
+get_wallet(Cred, Username) ->
+    Uri = build_uri(wallet, Username),
+    request(Cred, get, Uri).
+
+%%%===================================================================
 %%% Internal functions
 %%%===================================================================
 request(Cred, Method, Uri) ->
@@ -140,7 +172,7 @@ request(Cred, Method, Uri) ->
 request(Cred, Method, Uri, Body) ->
     Req = #request{method=Method, uri=Uri, body=Body},
     Req1 = merge_req_client(Req, Cred),
-    upvest_req:request(Req1).
+    upvest_req:run(Req1).
 
 request_all(Cred, Resource, get, Uri, Limit) ->
     Req = #request{method=get, uri=Uri},
@@ -161,21 +193,25 @@ merge_req_client(Req, Cred) ->
 
 build_uri(user, Username) ->
     Url = "/tenancy/users/~s",
-    io_lib:format(Url, [to_str(Username)]);
+    io_lib:format(Url, [upvest_utils:to_str(Username)]);
 build_uri(users, Params) ->
     Url = "/tenancy/users/",
     maybe_append_qs_params(Url, Params);
 build_uri(asset, AssetID) ->
     Url = "/assets/~s",
-    io_lib:format(Url, [to_str(AssetID)]);
+    io_lib:format(Url, [upvest_utils:to_str(AssetID)]);
 build_uri(assets, Params) ->
     Url = "/assets/",
     maybe_append_qs_params(Url, Params);
-build_uri(wallets, Params) ->
-    Url = "/kms/wallets/",
-    maybe_append_qs_params(Url, Params);
 build_uri(transactions, Params) ->
     Url = "/kms/wallets/~s/transactions/",
+    maybe_append_qs_params(Url, Params);
+
+build_uri(wallet, WalletID) ->
+    Url = "/kms/wallets/~s",
+    io_lib:format(Url, [upvest_utils:to_str(WalletID)]);
+build_uri(wallets, Params) ->
+    Url = "/kms/wallets/",
     maybe_append_qs_params(Url, Params).
 
 maybe_append_qs_params(Url, Params) ->
@@ -202,18 +238,59 @@ paginated(M) when is_map(M) ->
 paginated(Count) ->
     #{"page_size" => Count}.
 
-to_str(Arg) when is_binary(Arg) ->
-    unicode:characters_to_list(Arg);
-to_str(Arg) when is_atom(Arg) ->
-    atom_to_list(Arg);
-to_str(Arg) when is_integer(Arg) ->
-    integer_to_list(Arg);
-to_str(Arg) when is_list(Arg) ->
-    Arg.
+-spec to_record(upvest_object_name(), proplists:list()) -> upvest_object().
+to_record(user, DecodedResult) ->
+    #upvest_user{
+       username = ?V(username),
+       recovery_kit = ?V(recovery_kit),
+       wallet_ids = ?V(wallet_ids),
+       wallets = ?V(wallets)
+      };
 
-to_bin(Arg) when is_list(Arg) ->
-    list_to_binary(Arg);
-to_bin(Arg) when is_atom(Arg) ->
-    atom_to_binary(Arg, latin1);
-to_bin(Arg) when is_binary(Arg) ->
-    Arg.
+to_record(asset, DecodedResult) ->
+    #upvest_asset{
+       id = ?V(id),
+       name = ?V(name),
+       symbol = ?V(symbol),
+       exponent = ?V(exponent),
+       protocol = ?V(protocol),
+       metadata = ?V(metadata)
+      };
+to_record(balance, DecodedResult) ->
+    #wallet_balance{
+       amount = ?V(amount),
+       asset_id= ?V(asset_id),
+       name = ?V(name),
+       symbol = ?V(symbol),
+       exponent = ?V(exponent)
+      };
+to_record(wallet, DecodedResult) ->
+    #upvest_wallet{
+       id = ?V(id),
+       path = ?V(path),
+       balances = ?V(balances),
+       protocol = ?V(protocol),
+       address  = ?V(address),
+       status = ?V(status),
+       index = ?V(index)
+      };
+to_record(transaction, DecodedResult) ->
+    #upvest_transaction{
+       id = ?V(id),
+       tx_hash = ?V(tx_hash),
+       wallet_id = ?V(asset_id),
+       asset_id = ?V(asset_id),
+       asset_name = ?V(asset_name),
+       exponent = ?V(exponent),
+       sender = ?V(sender),
+       recipient = ?V(recipient),
+       quantity = ?V(quantity),
+       fee = ?V(fee),
+       status = ?V(status)
+      }.
+
+-spec to_records(paginated_list, upvest_object_name()) -> paginated_list().
+to_records(#paginated_list{} = L, Schema) ->
+    L#paginated_list{
+      results = [upvest_json:to_record(Schema, Object) || Object <- L#paginated_list.results]
+     }.
