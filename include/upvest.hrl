@@ -4,10 +4,12 @@
 -define(APP, upvest).
 -define(VSN_STR, "0.1.0").
 
+-define(TEST_TIMEOUT, 60).
+
 %% MaxPageSize is the maximum page size when retrieving list
 -define(DEFAULT_PAGE_SIZE, 100).
 
-%%timeout for HTTP requests
+%% timeout for HTTP requests
 -define(HTTP_TIMEOUT, 10000).
 
 %% default to playground environment
@@ -15,10 +17,11 @@
 
 -define(USER_AGENT, "upvest-erlang/" ++ ?VSN_STR).
 
--define(DEFAULT_HEADERS, [{<<"User-Agent">>, ?USER_AGENT},
-                          {<<"Content-Type">>, <<"application/json;charset=utf8">>},
-                          {<<"Accept">>, <<"application/json">>}
-                         ]).
+-define(DEFAULT_REQUEST_HEADERS,
+        [{<<"User-Agent">>, ?USER_AGENT},
+         {<<"Content-Type">>, <<"application/json;charset=utf8">>},
+         {<<"Accept">>, <<"application/json">>}
+        ]).
 
 -define(NRAPI, <<"Not Returned by API">>).
 -define(V(X), maps:get(atom_to_binary(X, utf8), DecodedResult, ?NRAPI)).
@@ -31,7 +34,7 @@
 
 -define(record_to_list(Rec, Ref), lists:zip(record_info(fields, Rec),tl(tuple_to_list(Ref)))).
 
-                                                %Easy to use macros for debugging/development
+%% Easy to use macros for debugging/development
 -define(PRINT(Var),
         case application:get_env(upvest, enable_logging, true) of
             true ->
@@ -40,6 +43,14 @@
                 ok
         end
        ).
+
+                                                % OAuth
+-define(OAUTH_GRANT_TYPE, <<"password">>).
+-define(OAUTH_SCOPE, <<"read write echo transaction">>).
+-define(OAUTH_PATH, "/clientele/oauth2/token").
+
+                                                % URLEncodeHeader is the content-type header for OuAth2
+-define(URL_ENCODE_HEADER, <<"application/x-www-form-urlencoded">>).
 
 %%%--------------------------------------------------------------------
 %%% General Types
@@ -58,8 +69,7 @@
                   headers = [] ::  proplists:list(),
                   body = #{} :: string() | binary() | map(),
                   auth :: credentials(),
-                  base_url = ?DEFAULT_BASE_URL :: string(),
-                  options = [] :: proplists:list()
+                  base_url = ?DEFAULT_BASE_URL :: string()
                  }).
 
 %% OAuth (The OAuth2 Key Authentication) is used to authenticate requests on behalf of a user

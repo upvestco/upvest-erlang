@@ -46,7 +46,8 @@ eunit:
 	@echo "Running rebar3 eunit..."
 	@$(REBAR3) do eunit -cv, cover -v
 
-test: elvis eunit
+tests: elvis
+	rebar3 ct --logdir=./test/logs
 
 xref:
 	@echo "Running rebar3 xref..."
