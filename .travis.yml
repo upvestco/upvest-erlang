@@ -8,5 +8,11 @@ otp_release:
   - 21.3.8
   - 20.3
   - 19.3
+install:
+  - wget https://s3.amazonaws.com/rebar3/rebar3
+  - chmod +x rebar3
+  - export PATH=$PWD:$PATH
+  - # Add ./bin directory with elvis
+  - export PATH=$PWD./bin:$PATH  
 script: "make travis"
 sudo: false

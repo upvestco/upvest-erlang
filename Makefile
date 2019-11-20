@@ -1,22 +1,5 @@
-REBAR3_URL=https://s3.amazonaws.com/rebar3/rebar3
-ELVIS ?= $(shell which elvis)
-
-# If building on travis, use the rebar in the current directory
-ifeq ($(TRAVIS),true)
-	REBAR = $(CURDIR)/rebar
-endif
-
-ifeq ($(wildcard rebar3),rebar3)
-  REBAR3 = $(CURDIR)/rebar3
-endif
-
-# Fallback to rebar on PATH
 REBAR3 ?= $(shell which rebar3)
-
-# And finally, prep to download rebar if all else fails
-ifeq ($(REBAR3),)
-	REBAR3 = rebar3
-endif
+ELVIS ?= $(shell which elvis)
 
 
 all: $(REBAR3)
@@ -60,10 +43,6 @@ travis: test coveralls
 
 shell:
 	@$(REBAR3) as shell shell
-
-$(REBAR3):
-	curl -Lo rebar3 $(REBAR3_URL) || wget $(REBAR3_URL)
-	chmod +x ./rebar3
 
 FMT = _build/erlang-formatter-master/fmt.sh
 $(FMT):
