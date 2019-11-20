@@ -47,7 +47,8 @@
          get_transactions/3,
          get_transactions/4,
          all_transactions/2,
-         all_transactions/3
+         all_transactions/3,
+         create_transaction/7
         ]).
 
 
@@ -222,7 +223,7 @@ create_wallet(Cred, Password, AssetID, Type, Index) ->
 
 -spec sign_wallet(credentials(), binary(), binary(), binary()) -> result().
 sign_wallet(Cred, WalletID, Password, ToSign) ->
-    Uri = build_uri(sign_wallets, WalletID),
+    Uri = build_uri(sign_wallet, WalletID),
     Body = #{
       <<"wallets">> => upvest_utils:to_bin(WalletID),
       <<"password">> => upvest_utils:to_bin(Password),
@@ -232,7 +233,7 @@ sign_wallet(Cred, WalletID, Password, ToSign) ->
 
 -spec sign_wallet(credentials(), binary(), binary(), binary(), binary()) -> result().
 sign_wallet(Cred, WalletID, Password, ToSign, InputFormat) ->
-    Uri = build_uri(sign_wallets, WalletID),
+    Uri = build_uri(sign_wallet, WalletID),
     Body = #{
       <<"wallets">> => upvest_utils:to_bin(WalletID),
       <<"password">> => upvest_utils:to_bin(Password),
@@ -243,7 +244,7 @@ sign_wallet(Cred, WalletID, Password, ToSign, InputFormat) ->
 
 -spec sign_wallet(credentials(), binary(), binary(), binary(), binary(), binary()) -> result().
 sign_wallet(Cred, WalletID, Password, ToSign, InputFormat, OutputFormat) ->
-    Uri = build_uri(sign_wallets, WalletID),
+    Uri = build_uri(sign_wallet, WalletID),
     Body = #{
       <<"wallets">> => upvest_utils:to_bin(WalletID),
       <<"password">> => upvest_utils:to_bin(Password),
@@ -263,7 +264,7 @@ get_transactions(Cred, WalletID, Limit) ->
 
 -spec get_transactions(credentials(), binary(), pos_integer(), options()) -> result().
 get_transactions(Cred, WalletID, Limit, Opts) ->
-    Uri = build_uri(transactions, WalletID, Opts),
+    Uri = build_uri(transactions, WalletID, paginated(Opts)),
     request_all(Cred, transactions, get, Uri, Limit).
 
 -spec all_transactions(credentials(), binary()) -> result().
@@ -279,6 +280,19 @@ all_transactions(Cred, WalletID, Opts) ->
 get_transaction(Cred, WalletID, TxID) ->
     Uri = build_uri(transaction, WalletID, TxID),
     request(Cred, get, Uri).
+
+-spec create_transaction(credentials(), binary(), binary(),
+  binary(), binary(), binary(), binary()) -> result().
+create_transaction(Cred, WalletID, Password, AssetID, Qty, Fee, Recipient) ->
+    Body = #{
+      <<"password">> =>  upvest_utils:to_bin(Password),
+      <<"asset_id">> => upvest_utils:to_bin(AssetID),
+      <<"quantity">> => upvest_utils:to_bin(Qty),
+      <<"fee">> => upvest_utils:to_bin(Fee),
+      <<"recipient">> => upvest_utils:to_bin(Recipient)
+     },
+    Uri = build_uri(transaction, WalletID),
+    request(Cred, post, Uri, Body).
 
 %%%===================================================================
 %%% Internal functions
@@ -327,13 +341,18 @@ build_uri(wallets, Params) ->
     Url = "/kms/wallets/",
     maybe_append_qs_params(Url, Params);
 build_uri(sign_wallet, WalletID) ->
-    Url = "/kms/wallets/%s/sign",
-    io_lib:format(Url, [upvest_utils:to_str(WalletID)]).
+    Url = "/kms/wallets/~s/sign",
+    io_lib:format(Url, [upvest_utils:to_str(WalletID)]);
+
+build_uri(transaction, WalletID) ->
+    Url = "/kms/wallets/~s/transactions/",
+    WalletID1 = upvest_utils:to_str(WalletID),
+    io_lib:format(Url, [WalletID1]).
 
 build_uri(transactions, WalletID, Params) ->
     Url = "/kms/wallets/~s/transactions/",
-    io_lib:format(Url, [upvest_utils:to_str(WalletID)]),
-    maybe_append_qs_params(Url, Params);
+    Url1 = io_lib:format(Url, [upvest_utils:to_str(WalletID)]),
+    maybe_append_qs_params(Url1, Params);
 
 build_uri(transaction, WalletID, TxID) ->
     Url = "/kms/wallets/~s/transactions/~s",

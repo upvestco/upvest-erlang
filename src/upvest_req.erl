@@ -30,10 +30,10 @@ run(Method, Uri, Headers, Body) ->
     do_run(Method, Uri, Headers, Body).
 
 do_run(Method, Uri, Headers, Body) ->
-    EncodedBody = encode(content_type(Headers), Body),
-    ?PRINT(Uri),
-    ?PRINT(Headers),
-    case hackney:Method(Uri, Headers, EncodedBody) of
+    Payload = encode(content_type(Headers), Body),
+    Opts = [{recv_timeout, 10000}],
+    %%?PRINT(Uri),
+    case hackney:Method(Uri, Headers, Payload, Opts) of
         %% delete endpoint returns 204 No Content
         {ok, Status, _RespHeaders, _ClientRef} when Status =:= 204 ->
             {ok, no_content};
@@ -163,7 +163,6 @@ format_error(ErrCode, Body) ->
     format_error(ErrCode, ErrCodeMeaning, Body).
 
 format_error(ErrCode, ErrCodeMeaning, Body) ->
-    ?PRINT(Body),
     PreDecoded = decode(Body),
     DecodedResult = maybe_get_key(<<"error">>, PreDecoded, <<"details">>),
     #upvest_error{type    = ErrCodeMeaning,

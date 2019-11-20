@@ -72,5 +72,7 @@ to_bin(Arg) when is_list(Arg) ->
     list_to_binary(Arg);
 to_bin(Arg) when is_atom(Arg) ->
     atom_to_binary(Arg, latin1);
+to_bin(Arg) when is_integer(Arg) ->
+    integer_to_binary(Arg);
 to_bin(Arg) when is_binary(Arg) ->
     Arg.
