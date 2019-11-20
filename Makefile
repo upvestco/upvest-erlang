@@ -42,12 +42,11 @@ edoc:
 	@echo "Running rebar3 edoc..."
 	@$(REBAR3) as edoc edoc
 
-eunit:
-	@echo "Running rebar3 eunit..."
-	@$(REBAR3) do eunit -cv, cover -v
+ct:
+	@echo "Running rebar3 common test suite..."
+	@$(REBAR3) ct --logdir=./test/logs
 
-tests: elvis
-	rebar3 ct --logdir=./test/logs
+test: elvis ct
 
 xref:
 	@echo "Running rebar3 xref..."
@@ -77,4 +76,4 @@ fmt: TO_FMT ?= .
 fmt: $(FMT)
 	@$(if $(TO_FMT), $(FMT) $(TO_FMT))
 
-.PHONY: all clean compile tests eunit xref coveralls edoc shell dialyzer rebar3 fmt
+.PHONY: all clean compile test eunit xref coveralls edoc shell dialyzer rebar3 fmt
