@@ -118,13 +118,13 @@ get_wallet(Config) ->
 
 create_wallet(Config) ->
     Cred = ?config(oauth, Config),
-    AssetID = ?config(coin_asset, Config),
-    Password = ?config(oauth, Config),
+    AssetID = ?config(eth_ropsten_asset, Config),
+    Password = ?config(password, Config),
     {ok, _Wallet} = upvest:create_wallet(Cred, Password, AssetID).
 
 sign_wallet(Config) -> 
     Cred = ?config(oauth, Config),
-    Password = ?config(oauth, Config),
+    Password = ?config(password, Config),
     EthWalletID = ?config(eth_ropsten_wallet, Config),
     ToSign = random_chrs(256),
     upvest:sign_wallet(Cred, EthWalletID, Password, ToSign).
@@ -140,19 +140,20 @@ all_transactions(Config) ->
 
 list_transactions(Config) ->
     Cred = ?config(oauth, Config),
-    EthWalletID = ?config(eth_wallet, Config),
+    EthWalletID = ?config(eth_ropsten_wallet, Config),
     {ok, AllTxs} = upvest:get_transactions(Cred, EthWalletID, 100),
     ?assert(is_list(AllTxs#paginated_list.results)),
     ?assert(length(AllTxs#paginated_list.results) < 200).
 
 create_transaction(Config) ->
     Cred = ?config(oauth, Config),
+    EthWalletID = ?config(eth_ropsten_wallet, Config),
     Password = ?config(password, Config),
     AssetID = ?config(eth_ropsten_asset, Config),
     Qty = 10000000000000000,
     Fee = 41180000000000,
     Recipient = "0xf9b44Ba370CAfc6a7AF77D0BDB0d50106823D91b",
-    {ok, Tx} = upvest:create_transaction(Cred, EthWalletID, Password, AssetID, Qty, Fee, Recipient).    
+    {ok, _Tx} = upvest:create_transaction(Cred, EthWalletID, Password, AssetID, Qty, Fee, Recipient).    
 
 get_transaction(Config) ->
     Cred = ?config(oauth, Config),
