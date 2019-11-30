@@ -32,7 +32,6 @@ run(Method, Uri, Headers, Body) ->
 do_run(Method, Uri, Headers, Body) ->
     Payload = encode(content_type(Headers), Body),
     Opts = [{recv_timeout, 10000}],
-    %%?PRINT(Uri),
     case hackney:Method(Uri, Headers, Payload, Opts) of
         %% delete endpoint returns 204 No Content
         {ok, Status, _RespHeaders, _ClientRef} when Status =:= 204 ->

@@ -128,7 +128,7 @@ sign_wallet(Config) ->
     EthWalletID = ?config(eth_ropsten_wallet, Config),
     ToSign = random_chrs(256),
     upvest:sign_wallet(Cred, EthWalletID, Password, ToSign).
-    
+
 %%%-------------------------------------------------------------------
 %%% Transactions
 %%%-------------------------------------------------------------------

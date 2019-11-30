@@ -48,7 +48,16 @@
          get_transactions/4,
          all_transactions/2,
          all_transactions/3,
-         create_transaction/7
+         create_transaction/7,
+
+         get_webhook/2,
+         get_webhooks/2,
+         delete_webhook/2,
+         get_webhooks/3,
+         all_webhooks/1,
+         all_webhooks/2,
+         create_webhook/8,
+         verify_webhook/2
         ]).
 
 
@@ -185,9 +194,9 @@ get_wallet(Cred, Username) ->
 create_wallet(Cred, Password, AssetID) ->
     Uri = build_uri(wallets, #{}),
     Body = #{
-      <<"password">> => upvest_utils:to_bin(Password),
-      <<"asset_id">> => upvest_utils:to_bin(AssetID)
-     },
+             <<"password">> => upvest_utils:to_bin(Password),
+             <<"asset_id">> => upvest_utils:to_bin(AssetID)
+            },
     request(Cred, post, Uri, Body).
 
 %% @doc Takes valid credentials, a string representing a user's password,
@@ -199,10 +208,10 @@ create_wallet(Cred, Password, AssetID) ->
 create_wallet(Cred, Password, AssetID, Type) ->
     Uri = build_uri(wallets, #{}),
     Body = #{
-      <<"password">> => upvest_utils:to_bin(Password),
-      <<"asset_id">> => upvest_utils:to_bin(AssetID),
-      <<"type">> => upvest_utils:to_bin(Type)
-     },
+             <<"password">> => upvest_utils:to_bin(Password),
+             <<"asset_id">> => upvest_utils:to_bin(AssetID),
+             <<"type">> => upvest_utils:to_bin(Type)
+            },
     request(Cred, post, Uri, Body).
 
 %% @doc Takes valid credentials, a string representing a user's password,
@@ -214,44 +223,44 @@ create_wallet(Cred, Password, AssetID, Type) ->
 create_wallet(Cred, Password, AssetID, Type, Index) ->
     Uri = build_uri(wallets, #{}),
     Body = #{
-      <<"password">> => upvest_utils:to_bin(Password),
-      <<"asset_id">> => upvest_utils:to_bin(AssetID),
-      <<"type">> => upvest_utils:to_bin(Type),
-      <<"index">> => upvest_utils:to_bin(Index)
-     },
+             <<"password">> => upvest_utils:to_bin(Password),
+             <<"asset_id">> => upvest_utils:to_bin(AssetID),
+             <<"type">> => upvest_utils:to_bin(Type),
+             <<"index">> => upvest_utils:to_bin(Index)
+            },
     request(Cred, post, Uri, Body).
 
 -spec sign_wallet(credentials(), binary(), binary(), binary()) -> result().
 sign_wallet(Cred, WalletID, Password, ToSign) ->
     Uri = build_uri(sign_wallet, WalletID),
     Body = #{
-      <<"wallets">> => upvest_utils:to_bin(WalletID),
-      <<"password">> => upvest_utils:to_bin(Password),
-      <<"to_sign">> => upvest_utils:to_bin(ToSign)
-     },
+             <<"wallets">> => upvest_utils:to_bin(WalletID),
+             <<"password">> => upvest_utils:to_bin(Password),
+             <<"to_sign">> => upvest_utils:to_bin(ToSign)
+            },
     request(Cred, post, Uri, Body).
 
 -spec sign_wallet(credentials(), binary(), binary(), binary(), binary()) -> result().
 sign_wallet(Cred, WalletID, Password, ToSign, InputFormat) ->
     Uri = build_uri(sign_wallet, WalletID),
     Body = #{
-      <<"wallets">> => upvest_utils:to_bin(WalletID),
-      <<"password">> => upvest_utils:to_bin(Password),
-      <<"to_sign">> => upvest_utils:to_bin(ToSign),
-      <<"input_format">> => upvest_utils:to_bin(InputFormat)
-     },
+             <<"wallets">> => upvest_utils:to_bin(WalletID),
+             <<"password">> => upvest_utils:to_bin(Password),
+             <<"to_sign">> => upvest_utils:to_bin(ToSign),
+             <<"input_format">> => upvest_utils:to_bin(InputFormat)
+            },
     request(Cred, post, Uri, Body).
 
 -spec sign_wallet(credentials(), binary(), binary(), binary(), binary(), binary()) -> result().
 sign_wallet(Cred, WalletID, Password, ToSign, InputFormat, OutputFormat) ->
     Uri = build_uri(sign_wallet, WalletID),
     Body = #{
-      <<"wallets">> => upvest_utils:to_bin(WalletID),
-      <<"password">> => upvest_utils:to_bin(Password),
-      <<"to_sign">> => upvest_utils:to_bin(ToSign),
-      <<"input_format">> => upvest_utils:to_bin(InputFormat),
-      <<"output_format">> => upvest_utils:to_bin(OutputFormat)
-     },
+             <<"wallets">> => upvest_utils:to_bin(WalletID),
+             <<"password">> => upvest_utils:to_bin(Password),
+             <<"to_sign">> => upvest_utils:to_bin(ToSign),
+             <<"input_format">> => upvest_utils:to_bin(InputFormat),
+             <<"output_format">> => upvest_utils:to_bin(OutputFormat)
+            },
     request(Cred, post, Uri, Body).
 
 
@@ -282,17 +291,70 @@ get_transaction(Cred, WalletID, TxID) ->
     request(Cred, get, Uri).
 
 -spec create_transaction(credentials(), binary(), binary(),
-  binary(), binary(), binary(), binary()) -> result().
+                         binary(), binary(), binary(), binary()) -> result().
 create_transaction(Cred, WalletID, Password, AssetID, Qty, Fee, Recipient) ->
     Body = #{
-      <<"password">> =>  upvest_utils:to_bin(Password),
-      <<"asset_id">> => upvest_utils:to_bin(AssetID),
-      <<"quantity">> => upvest_utils:to_bin(Qty),
-      <<"fee">> => upvest_utils:to_bin(Fee),
-      <<"recipient">> => upvest_utils:to_bin(Recipient)
-     },
+             <<"password">> =>  upvest_utils:to_bin(Password),
+             <<"asset_id">> => upvest_utils:to_bin(AssetID),
+             <<"quantity">> => upvest_utils:to_bin(Qty),
+             <<"fee">> => upvest_utils:to_bin(Fee),
+             <<"recipient">> => upvest_utils:to_bin(Recipient)
+            },
     Uri = build_uri(transaction, WalletID),
     request(Cred, post, Uri, Body).
+
+%%%===================================================================
+%%% Webhooks  Management
+%%%===================================================================
+%% verify
+-spec verify_webhook(credentials(), binary()) -> result().
+verify_webhook(Cred, Url) ->
+    Body = #{<<"verify_url">> =>  upvest_utils:to_bin(Url)},
+    Uri = build_uri(webhooks_verify),
+    request(Cred, post, Uri, Body).
+
+-spec create_webhook(credentials(), binary(), binary(), binary(),
+                     binary(), binary(), binary(), binary()) -> result().
+create_webhook(Cred, Url, Name, Headers, Version, Status, EventFilters, HMACSecretKey) ->
+    Body = #{
+      <<"url">> =>  upvest_utils:to_bin(Url),
+      <<"name">> => upvest_utils:to_bin(Name),
+      <<"headers">> => upvest_utils:to_bin(Headers),
+      <<"version">> => upvest_utils:to_bin(Version),
+      <<"status">> => upvest_utils:to_bin(Status),
+      <<"event_filters">> => upvest_utils:to_bin(EventFilters),
+      <<"hmac_secret_key">> => upvest_utils:to_bin(HMACSecretKey)
+     },
+    Uri = build_uri(webhooks),
+    request(Cred, post, Uri, Body).
+
+-spec get_webhook(credentials(), binary()) -> result().
+get_webhook(Cred, WebhookID) ->
+    Uri = build_uri(webhook, WebhookID),
+    request(Cred, get, Uri).
+
+-spec delete_webhook(credentials(), string()) -> result().
+delete_webhook(Cred, WebhookID) ->
+    Uri = build_uri(webhooks, WebhookID),
+    request(Cred, delete, Uri).
+
+-spec get_webhooks(credentials(), pos_integer()) -> result().
+get_webhooks(Cred, Limit) ->
+    get_webhooks(Cred, Limit, #{}).
+
+-spec get_webhooks(credentials(), pos_integer(), options()) -> result().
+get_webhooks(Cred, Limit, Opts) ->
+    Uri = build_uri(webhooks, paginated(Opts)),
+    request_all(Cred, webhooks, get, Uri, Limit).
+
+-spec all_webhooks(credentials()) -> result().
+all_webhooks(Cred) ->
+    all_webhooks(Cred, paginated(#{})).
+
+-spec all_webhooks(credentials(), options()) -> result().
+all_webhooks(Cred, Opts) ->
+    Uri = build_uri(webhooks, Opts),
+    request_all(Cred, webhooks, get, Uri).
 
 %%%===================================================================
 %%% Internal functions
@@ -344,6 +406,10 @@ build_uri(sign_wallet, WalletID) ->
     Url = "/kms/wallets/~s/sign",
     io_lib:format(Url, [upvest_utils:to_str(WalletID)]);
 
+build_uri(webhooks, WebhookID) ->
+    Url = "/tenancy/webhooks/~s",
+    io_lib:format(Url, [upvest_utils:to_str(WebhookID)]);
+
 build_uri(transaction, WalletID) ->
     Url = "/kms/wallets/~s/transactions/",
     WalletID1 = upvest_utils:to_str(WalletID),
@@ -359,6 +425,11 @@ build_uri(transaction, WalletID, TxID) ->
     TxID1 = upvest_utils:to_str(TxID),
     WalletID1 = upvest_utils:to_str(WalletID),
     io_lib:format(Url, [WalletID1, TxID1]).
+
+build_uri(webhooks) ->
+    "/tenancy/webhooks/";
+build_uri(webhooks_verify) ->
+    "/tenancy/webhooks-verify/".
 
 maybe_append_qs_params(Url, Params) ->
     case maps:size(Params) > 0 of
