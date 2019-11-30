@@ -23,19 +23,23 @@ groups() ->
      },
      {clientele_tests,
       [parallel],
-      [all_wallets, list_wallets, get_wallet,
+      [all_wallets, list_wallets, get_wallet, create_wallet, sign_wallet,
        all_transactions, list_transactions, get_transaction,
-       create_wallet, sign_wallet]
+       all_webhooks, list_webhooks, verify_webhook, crud_webhook
+      ]
      }].
 
 init_per_suite(Config) ->
     application:ensure_all_started(?APP),
-    [{keyauth, keyauth_credentials()}, 
+    [{keyauth, keyauth_credentials()},
      {oauth, oauth_credentials()},
      {eth_ropsten_wallet, <<"8fc19cd0-8f50-4626-becb-c9e284d2315b">>},
      {eth_ropsten_tx, <<"ef48567e-3cb1-47a1-9469-16d38b190c10">>},
      {eth_ropsten_asset, <<"deaaa6bf-d944-57fa-8ec4-2dd45d1f5d3f">>},
-     {password, os:getenv("UPVEST_TEST_PASSWORD")}
+     {password, os:getenv("UPVEST_TEST_PASSWORD")},
+     %% webhook
+     {webhook_url, os:getenv("WEBHOOK_URL")},
+     {webhook_verification_url, os:getenv("WEBHOOK_VERIFICATION_URL")}
      |Config].
 
 end_per_suite(_Config) ->
@@ -122,7 +126,7 @@ create_wallet(Config) ->
     Password = ?config(password, Config),
     {ok, _Wallet} = upvest:create_wallet(Cred, Password, AssetID).
 
-sign_wallet(Config) -> 
+sign_wallet(Config) ->
     Cred = ?config(oauth, Config),
     Password = ?config(password, Config),
     EthWalletID = ?config(eth_ropsten_wallet, Config),
@@ -153,7 +157,7 @@ create_transaction(Config) ->
     Qty = 10000000000000000,
     Fee = 41180000000000,
     Recipient = "0xf9b44Ba370CAfc6a7AF77D0BDB0d50106823D91b",
-    {ok, _Tx} = upvest:create_transaction(Cred, EthWalletID, Password, AssetID, Qty, Fee, Recipient).    
+    {ok, _Tx} = upvest:create_transaction(Cred, EthWalletID, Password, AssetID, Qty, Fee, Recipient).
 
 get_transaction(Config) ->
     Cred = ?config(oauth, Config),
@@ -162,6 +166,42 @@ get_transaction(Config) ->
     {ok, Tx} = upvest:get_transaction(Cred, EthWalletID, EthTxID),
     %% pattern match TxID and returned TxID
     EthTxID = maps:get(<<"id">>, Tx).
+
+%%%-------------------------------------------------------------------
+%%% Webhooks
+%%%-------------------------------------------------------------------
+all_webhooks(Config) ->
+    Cred = ?config(keyauth, Config),
+    {ok, AllWebhooks} = upvest:all_webhooks(Cred),
+    ?assert(is_list(AllWebhooks#paginated_list.results)).
+
+list_webhooks(Config) ->
+    Cred = ?config(keyauth, Config),
+    {ok, Webhooks} = upvest:get_webhooks(Cred, 200),
+    ?assert(length(Webhooks#paginated_list.results) < 200),
+    ?assert(is_list(Webhooks#paginated_list.results)).
+
+verify_webhook(Config) ->
+    Cred = ?config(keyauth, Config),
+    Url = ?config(webhook_verification_url, Config),
+    {ok, _} = upvest:verify_webhook(Cred, Url).
+
+crud_webhook(Config) ->
+    Cred = ?config(keyauth, Config),
+    Url = ?config(webhook_url, Config),
+    Name = io_lib:format("test-webhook-~s", [random_chrs()]),
+    Headers = #{<<"X-Test">> => <<"Hello world!">>},
+    Version = <<"1.2">>,
+    Status = <<"ACTIVE">>,
+    EventFilters = [<<"upvest.wallet.created">>, <<"ropsten.block.*">>, <<"upvest.echo.post">>],
+    HMACSecretKey = <<"abcdef">>,
+    %% create webhook
+    {ok, Webhook} = upvest:create_webhook(Cred, Url, Name, Headers, Version, Status, EventFilters, HMACSecretKey),
+    WebhookID = maps:get(<<"id">>, Webhook),
+    %% retrieve: use pattern match to assert match
+    {ok, Webhook} = upvest:get_webhook(Cred, WebhookID),
+    %% now delete the webhook
+    {ok, _} = upvest:delete_webhook(Cred, WebhookID).
 
 %%%-------------------------------------------------------------------
 %%% Miscellaneous

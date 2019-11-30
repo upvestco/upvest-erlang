@@ -30,6 +30,15 @@
          all_assets/1,
          all_assets/2,
 
+         get_webhook/2,
+         get_webhooks/2,
+         delete_webhook/2,
+         get_webhooks/3,
+         all_webhooks/1,
+         all_webhooks/2,
+         create_webhook/8,
+         verify_webhook/2,
+
          %% Clientele API
          get_wallet/2,
          get_wallets/2,
@@ -48,16 +57,7 @@
          get_transactions/4,
          all_transactions/2,
          all_transactions/3,
-         create_transaction/7,
-
-         get_webhook/2,
-         get_webhooks/2,
-         delete_webhook/2,
-         get_webhooks/3,
-         all_webhooks/1,
-         all_webhooks/2,
-         create_webhook/8,
-         verify_webhook/2
+         create_transaction/7
         ]).
 
 
@@ -306,11 +306,10 @@ create_transaction(Cred, WalletID, Password, AssetID, Qty, Fee, Recipient) ->
 %%%===================================================================
 %%% Webhooks  Management
 %%%===================================================================
-%% verify
 -spec verify_webhook(credentials(), binary()) -> result().
 verify_webhook(Cred, Url) ->
     Body = #{<<"verify_url">> =>  upvest_utils:to_bin(Url)},
-    Uri = build_uri(webhooks_verify),
+    Uri = "/tenancy/webhooks-verify/",
     request(Cred, post, Uri, Body).
 
 -spec create_webhook(credentials(), binary(), binary(), binary(),
@@ -319,13 +318,13 @@ create_webhook(Cred, Url, Name, Headers, Version, Status, EventFilters, HMACSecr
     Body = #{
       <<"url">> =>  upvest_utils:to_bin(Url),
       <<"name">> => upvest_utils:to_bin(Name),
-      <<"headers">> => upvest_utils:to_bin(Headers),
+      <<"headers">> => Headers,
+      <<"event_filters">> => EventFilters,
       <<"version">> => upvest_utils:to_bin(Version),
       <<"status">> => upvest_utils:to_bin(Status),
-      <<"event_filters">> => upvest_utils:to_bin(EventFilters),
       <<"hmac_secret_key">> => upvest_utils:to_bin(HMACSecretKey)
      },
-    Uri = build_uri(webhooks),
+    Uri = "/tenancy/webhooks/",
     request(Cred, post, Uri, Body).
 
 -spec get_webhook(credentials(), binary()) -> result().
@@ -335,7 +334,7 @@ get_webhook(Cred, WebhookID) ->
 
 -spec delete_webhook(credentials(), string()) -> result().
 delete_webhook(Cred, WebhookID) ->
-    Uri = build_uri(webhooks, WebhookID),
+    Uri = build_uri(webhook, WebhookID),
     request(Cred, delete, Uri).
 
 -spec get_webhooks(credentials(), pos_integer()) -> result().
@@ -406,7 +405,11 @@ build_uri(sign_wallet, WalletID) ->
     Url = "/kms/wallets/~s/sign",
     io_lib:format(Url, [upvest_utils:to_str(WalletID)]);
 
-build_uri(webhooks, WebhookID) ->
+build_uri(webhooks, Params) ->
+    Url = "/tenancy/webhooks/",
+    maybe_append_qs_params(Url, Params);
+
+build_uri(webhook, WebhookID) ->
     Url = "/tenancy/webhooks/~s",
     io_lib:format(Url, [upvest_utils:to_str(WebhookID)]);
 
@@ -425,11 +428,6 @@ build_uri(transaction, WalletID, TxID) ->
     TxID1 = upvest_utils:to_str(TxID),
     WalletID1 = upvest_utils:to_str(WalletID),
     io_lib:format(Url, [WalletID1, TxID1]).
-
-build_uri(webhooks) ->
-    "/tenancy/webhooks/";
-build_uri(webhooks_verify) ->
-    "/tenancy/webhooks-verify/".
 
 maybe_append_qs_params(Url, Params) ->
     case maps:size(Params) > 0 of
