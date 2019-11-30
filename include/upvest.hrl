@@ -59,7 +59,6 @@
 -type method() :: get | post | put | delete.
 -type headers() :: [header()].
 -type header()  :: {binary(), binary()}.
--type options()  :: map().
 -type request() :: request().
 -type json() :: jiffy:jiffy_decode_result().
 
@@ -186,6 +185,5 @@
 -export_type([
               result/0,
               credentials/0,
-              error/0,
-              options/0
+              error/0
              ]).

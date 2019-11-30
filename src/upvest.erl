@@ -88,20 +88,20 @@ oauth(ClientID, ClientSecret, Username, Password) ->
 %%%--------------------------------------------------------------------
 -spec get_users(credentials(), pos_integer()) -> result().
 get_users(Cred, Limit) ->
-    get_users(Cred, Limit, #{}).
+    get_users(Cred, Limit, ?DEFAULT_PAGE_SIZE).
 
--spec get_users(credentials(), pos_integer(), options()) -> result().
-get_users(Cred, Limit, Opts) ->
-    Uri = build_uri(users, paginated(Opts)),
+-spec get_users(credentials(), pos_integer(), pos_integer()) -> result().
+get_users(Cred, Limit, PageSize) ->
+    Uri = build_uri(users, page(PageSize)),
     request_all(Cred, users, get, Uri, Limit).
 
 -spec all_users(credentials()) -> result().
 all_users(Cred) ->
-    all_users(Cred, paginated(#{})).
+    all_users(Cred, ?DEFAULT_PAGE_SIZE).
 
--spec all_users(credentials(), options()) -> result().
-all_users(Cred, Opts) ->
-    Uri = build_uri(users, Opts),
+-spec all_users(credentials(), pos_integer()) -> result().
+all_users(Cred, PageSize) ->
+    Uri = build_uri(users, page(PageSize)),
     request_all(Cred, users, get, Uri).
 
 -spec get_user(credentials(), string()) -> result().
@@ -138,20 +138,20 @@ delete_user(Cred, Username) ->
 %%%--------------------------------------------------------------------
 -spec get_assets(credentials(), pos_integer()) -> result().
 get_assets(Cred, Limit) ->
-    get_assets(Cred, Limit, #{}).
+    get_assets(Cred, Limit, ?DEFAULT_PAGE_SIZE).
 
--spec get_assets(credentials(), pos_integer(), options()) -> result().
-get_assets(Cred, Limit, Opts) ->
-    Uri = build_uri(assets, paginated(Opts)),
+-spec get_assets(credentials(), pos_integer(), pos_integer()) -> result().
+get_assets(Cred, Limit, PageSize) ->
+    Uri = build_uri(assets, page(PageSize)),
     request_all(Cred, assets, get, Uri, Limit).
 
 -spec all_assets(credentials()) -> result().
 all_assets(Cred) ->
-    all_assets(Cred, paginated(#{})).
+    all_assets(Cred, ?DEFAULT_PAGE_SIZE).
 
--spec all_assets(credentials(), options()) -> result().
-all_assets(Cred, Opts) ->
-    Uri = build_uri(assets, Opts),
+-spec all_assets(credentials(), pos_integer()) -> result().
+all_assets(Cred, PageSize) ->
+    Uri = build_uri(assets, page(PageSize)),
     request_all(Cred, assets, get, Uri).
 
 -spec get_asset(credentials(), string()) -> result().
@@ -164,20 +164,20 @@ get_asset(Cred, AssetID) ->
 %%%===================================================================
 -spec get_wallets(credentials(), pos_integer()) -> result().
 get_wallets(Cred, Limit) ->
-    get_wallets(Cred, Limit, #{}).
+    get_wallets(Cred, Limit, ?DEFAULT_PAGE_SIZE).
 
--spec get_wallets(credentials(), pos_integer(), options()) -> result().
-get_wallets(Cred, Limit, Opts) ->
-    Uri = build_uri(wallets, paginated(Opts)),
+-spec get_wallets(credentials(), pos_integer(), pos_integer()) -> result().
+get_wallets(Cred, Limit, PageSize) ->
+    Uri = build_uri(wallets, page(PageSize)),
     request_all(Cred, wallets, get, Uri, Limit).
 
 -spec all_wallets(credentials()) -> result().
 all_wallets(Cred) ->
-    all_wallets(Cred, paginated(#{})).
+    all_wallets(Cred, ?DEFAULT_PAGE_SIZE).
 
--spec all_wallets(credentials(), options()) -> result().
-all_wallets(Cred, Opts) ->
-    Uri = build_uri(wallets, Opts),
+-spec all_wallets(credentials(), pos_integer()) -> result().
+all_wallets(Cred, PageSize) ->
+    Uri = build_uri(wallets, page(PageSize)),
     request_all(Cred, wallets, get, Uri).
 
 -spec get_wallet(credentials(), string()) -> result().
@@ -192,7 +192,7 @@ get_wallet(Cred, Username) ->
 %% @end
 -spec create_wallet(credentials(), binary(), binary()) -> result().
 create_wallet(Cred, Password, AssetID) ->
-    Uri = build_uri(wallets, #{}),
+    Uri = "/kms/wallets/",
     Body = #{
              <<"password">> => upvest_utils:to_bin(Password),
              <<"asset_id">> => upvest_utils:to_bin(AssetID)
@@ -206,7 +206,7 @@ create_wallet(Cred, Password, AssetID) ->
 %% @end
 -spec create_wallet(credentials(), binary(), binary(), binary()) -> result().
 create_wallet(Cred, Password, AssetID, Type) ->
-    Uri = build_uri(wallets, #{}),
+    Uri = "/kms/wallets/",
     Body = #{
              <<"password">> => upvest_utils:to_bin(Password),
              <<"asset_id">> => upvest_utils:to_bin(AssetID),
@@ -221,7 +221,7 @@ create_wallet(Cred, Password, AssetID, Type) ->
 %% @end
 -spec create_wallet(credentials(), binary(), binary(), binary(), binary()) -> result().
 create_wallet(Cred, Password, AssetID, Type, Index) ->
-    Uri = build_uri(wallets, #{}),
+    Uri = "/kms/wallets/",
     Body = #{
              <<"password">> => upvest_utils:to_bin(Password),
              <<"asset_id">> => upvest_utils:to_bin(AssetID),
@@ -269,20 +269,20 @@ sign_wallet(Cred, WalletID, Password, ToSign, InputFormat, OutputFormat) ->
 %%%===================================================================
 -spec get_transactions(credentials(), binary(), pos_integer()) -> result().
 get_transactions(Cred, WalletID, Limit) ->
-    get_transactions(Cred, WalletID, Limit, #{}).
+    get_transactions(Cred, WalletID, Limit, ?DEFAULT_PAGE_SIZE).
 
--spec get_transactions(credentials(), binary(), pos_integer(), options()) -> result().
-get_transactions(Cred, WalletID, Limit, Opts) ->
-    Uri = build_uri(transactions, WalletID, paginated(Opts)),
+-spec get_transactions(credentials(), binary(), pos_integer(), pos_integer()) -> result().
+get_transactions(Cred, WalletID, Limit, PageSize) ->
+    Uri = build_uri(transactions, WalletID, page(PageSize)),
     request_all(Cred, transactions, get, Uri, Limit).
 
 -spec all_transactions(credentials(), binary()) -> result().
 all_transactions(Cred, WalletID) ->
-    all_transactions(Cred, WalletID, #{}).
+    all_transactions(Cred, WalletID, ?DEFAULT_PAGE_SIZE).
 
--spec all_transactions(credentials(), binary(), options()) -> result().
-all_transactions(Cred, WalletID, Opts) ->
-    Uri = build_uri(transactions, WalletID, paginated(Opts)),
+-spec all_transactions(credentials(), binary(), pos_integer()) -> result().
+all_transactions(Cred, WalletID, PageSize) ->
+    Uri = build_uri(transactions, WalletID, page(PageSize)),
     request_all(Cred, transactions, get, Uri).
 
 -spec get_transaction(credentials(), binary(), binary()) -> result().
@@ -339,20 +339,20 @@ delete_webhook(Cred, WebhookID) ->
 
 -spec get_webhooks(credentials(), pos_integer()) -> result().
 get_webhooks(Cred, Limit) ->
-    get_webhooks(Cred, Limit, #{}).
+    get_webhooks(Cred, Limit, ?DEFAULT_PAGE_SIZE).
 
--spec get_webhooks(credentials(), pos_integer(), options()) -> result().
-get_webhooks(Cred, Limit, Opts) ->
-    Uri = build_uri(webhooks, paginated(Opts)),
+-spec get_webhooks(credentials(), pos_integer(), pos_integer()) -> result().
+get_webhooks(Cred, Limit, PageSize) ->
+    Uri = build_uri(webhooks, page(PageSize)),
     request_all(Cred, webhooks, get, Uri, Limit).
 
 -spec all_webhooks(credentials()) -> result().
 all_webhooks(Cred) ->
-    all_webhooks(Cred, paginated(#{})).
+    all_webhooks(Cred, ?DEFAULT_PAGE_SIZE).
 
--spec all_webhooks(credentials(), options()) -> result().
-all_webhooks(Cred, Opts) ->
-    Uri = build_uri(webhooks, Opts),
+-spec all_webhooks(credentials(), pos_integer()) -> result().
+all_webhooks(Cred, PageSize) ->
+    Uri = build_uri(webhooks, page(PageSize)),
     request_all(Cred, webhooks, get, Uri).
 
 %%%===================================================================
@@ -448,11 +448,10 @@ format_qs_param(K, V) when is_number(V) ->
     io_lib:format("~s=~p", [K, V]);
 format_qs_param(K, V) -> io_lib:format("~s=~s", [K, V]).
 
-paginated(M) when is_map(M) ->
-    maps:update_with("page_size", fun(X) -> X end, ?DEFAULT_PAGE_SIZE, M);
-paginated(Count) ->
+page(Count) ->
     #{"page_size" => Count}.
 
+%% NOTE: these records are currently not used in deserializing the response from the server
 -spec to_record(upvest_object_name(), proplists:list()) -> upvest_object().
 to_record(user, DecodedResult) ->
     #upvest_user{
