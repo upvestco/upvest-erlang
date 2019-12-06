@@ -370,7 +370,7 @@ all_webhooks(Cred, PageSize) ->
 -spec get_hdblock(credentials(), binary(), binary(), binary()) -> result().
 get_hdblock(Cred, Protocol, Network, BlockNumber) ->
     Uri = build_uri(hdblock, Protocol, Network, BlockNumber),
-    request(Cred, get, Uri).
+    hd_unwrap(request(Cred, get, Uri)).
 
 %% @doc List transactions that have been sent to and received by an address
 -spec get_hdtransactions(credentials(), binary(), binary(), binary(), txopts()) -> result().
@@ -383,7 +383,7 @@ get_hdtransactions(Cred, Protocol, Network, Address, Opts) ->
 -spec get_hdtransaction(credentials(), binary(), binary(), binary()) -> result().
 get_hdtransaction(Cred, Protocol, Network, TxHash) ->
     Uri = build_uri(hdtransaction, Protocol, Network, TxHash),
-    request(Cred, get, Uri).
+    hd_unwrap(request(Cred, get, Uri)).
 
 %% @doc Retrieve balance for native asset or contract
 %%   If contract, the contract address is returned in the result
@@ -391,13 +391,13 @@ get_hdtransaction(Cred, Protocol, Network, TxHash) ->
 -spec get_hdbalance(credentials(), binary(), binary(), binary()) -> result().
 get_hdbalance(Cred, Protocol, Network, Address) ->
     Uri = build_uri(hdbalance, Protocol, Network, Address),
-    request(Cred, get, Uri).
+    hd_unwrap(request(Cred, get, Uri)).
 
 %% @doc Get status of blockchain network
 -spec get_hdstatus(credentials(), binary(), binary()) -> result().
 get_hdstatus(Cred, Protocol, Network) ->
     Uri = build_uri(hdstatus, Protocol, Network),
-    request(Cred, get, Uri).
+    hd_unwrap(request(Cred, get, Uri)).
 
 %%%===================================================================
 %%% Internal functions
@@ -518,6 +518,11 @@ page(Count) ->
 
 all_str(Xs) ->
     [upvest_utils:to_str(X) || X <- Xs].
+
+%% @doc unwraps nested 'result' key from the response object from historical data API
+hd_unwrap({ok, Result}) ->
+    {ok, maps:get(<<"result">>, Result)};
+hd_unwrap({error, _Error} = E) -> E.
 
 %% NOTE: these records are currently not used in deserializing the response from the server
 -spec to_record(upvest_object_name(), proplists:list()) -> upvest_object().

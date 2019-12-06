@@ -113,7 +113,7 @@ get_hdblock(Config) ->
     BlockNumber = <<"6570890">>,
     {ok, Block} = upvest:get_hdblock(Cred, Protocol, Network, BlockNumber),
     %% upattern match on block number
-    BlockNumber = maps:get(Block, <<"number">>).
+    BlockNumber = maps:get(<<"number">>, Block).
 
 get_hdbalance(Config) ->
     Cred = ?config(keyauth, Config),
@@ -122,7 +122,7 @@ get_hdbalance(Config) ->
     Address = <<"0x93b3d0b2894e99c2934bed8586ea4e2b94ce6bfd">>,
     {ok, Balance} = upvest:get_hdbalance(Cred, Protocol, Network, Address),
     %% upattern match on the address
-    Address = maps:get(Balance, <<"address">>).
+    Address = maps:get(<<"address">>, Balance).
 
 get_hdtransaction(Config) ->
     Cred = ?config(keyauth, Config),
@@ -131,7 +131,7 @@ get_hdtransaction(Config) ->
     TxHash = <<"0xa313aaad0b9b1fd356f7f42ccff1fa385a2f7c2585e0cf1e0fb6814d8bdb559a">>,
     {ok, Transaction} = upvest:get_hdtransaction(Cred, Protocol, Network, TxHash),
     %% upattern match on the transaction
-    TxHash1 = maps:get(Transaction, <<"hash">>),
+    TxHash1 = maps:get(<<"hash">>, Transaction),
     TxHash = string:slice(TxHash1, 2).
 
 get_hdtransactions(Config) ->
