@@ -32,7 +32,7 @@
 %% Encoding is the text encoding to use
 -define(ENCODING, "utf-8").
 
--define(record_to_list(Rec, Ref), lists:zip(record_info(fields, Rec),tl(tuple_to_list(Ref)))).
+-define(record_to_list(Name, Record), lists:zip(record_info(fields, Name),tl(tuple_to_list(Record)))).
 
 %% Easy to use macros for debugging/development
 -define(PRINT(Var),
@@ -59,7 +59,6 @@
 -type method() :: get | post | put | delete.
 -type headers() :: [header()].
 -type header()  :: {binary(), binary()}.
--type request() :: request().
 -type json() :: jiffy:jiffy_decode_result().
 
 -record(request, {
@@ -70,6 +69,19 @@
                   auth :: credentials(),
                   base_url = ?DEFAULT_BASE_URL :: string()
                  }).
+
+-type request() :: #request{}.
+
+%% historical data transaction filters
+-record(txopts, {
+          before :: string(),
+          fter :: string(),
+          confirmations :: pos_integer(),
+          cursor :: string(),
+          limit :: integer()
+         }).
+
+-type txopts() :: #txopts{}.
 
 %% OAuth (The OAuth2 Key Authentication) is used to authenticate requests on behalf of a user
 -record(oauth, {

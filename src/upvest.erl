@@ -39,6 +39,12 @@
          create_webhook/8,
          verify_webhook/2,
 
+         get_hdbalance/4,
+         get_hdblock/4,
+         get_hdtransactions/5,
+         get_hdtransaction/4,
+         get_hdstatus/3,
+
          %% Clientele API
          get_wallet/2,
          get_wallets/2,
@@ -356,6 +362,44 @@ all_webhooks(Cred, PageSize) ->
     request_all(Cred, webhooks, get, Uri).
 
 %%%===================================================================
+%%% Historical Data API
+%%%===================================================================
+%% @doc Returns block details for the given block number
+%
+%% @end
+-spec get_hdblock(credentials(), binary(), binary(), binary()) -> result().
+get_hdblock(Cred, Protocol, Network, BlockNumber) ->
+    Uri = build_uri(hdblock, Protocol, Network, BlockNumber),
+    hd_unwrap(request(Cred, get, Uri)).
+
+%% @doc List transactions that have been sent to and received by an address
+-spec get_hdtransactions(credentials(), binary(), binary(), binary(), txopts()) -> result().
+get_hdtransactions(Cred, Protocol, Network, Address, Opts) ->
+    OptsM = maps:from_list(?record_to_list(txopts, Opts)),
+    Uri = build_uri(hdtransactions, Protocol, Network, Address, OptsM),
+    request(Cred, get, Uri).
+
+%% @doc Retrieve transaction (single) by txhash
+-spec get_hdtransaction(credentials(), binary(), binary(), binary()) -> result().
+get_hdtransaction(Cred, Protocol, Network, TxHash) ->
+    Uri = build_uri(hdtransaction, Protocol, Network, TxHash),
+    hd_unwrap(request(Cred, get, Uri)).
+
+%% @doc Retrieve balance for native asset or contract
+%%   If contract, the contract address is returned in the result
+%% end
+-spec get_hdbalance(credentials(), binary(), binary(), binary()) -> result().
+get_hdbalance(Cred, Protocol, Network, Address) ->
+    Uri = build_uri(hdbalance, Protocol, Network, Address),
+    hd_unwrap(request(Cred, get, Uri)).
+
+%% @doc Get status of blockchain network
+-spec get_hdstatus(credentials(), binary(), binary()) -> result().
+get_hdstatus(Cred, Protocol, Network) ->
+    Uri = build_uri(hdstatus, Protocol, Network),
+    hd_unwrap(request(Cred, get, Uri)).
+
+%%%===================================================================
 %%% Internal functions
 %%%===================================================================
 request(Cred, Method, Uri) ->
@@ -427,7 +471,28 @@ build_uri(transaction, WalletID, TxID) ->
     Url = "/kms/wallets/~s/transactions/~s",
     TxID1 = upvest_utils:to_str(TxID),
     WalletID1 = upvest_utils:to_str(WalletID),
-    io_lib:format(Url, [WalletID1, TxID1]).
+    io_lib:format(Url, [WalletID1, TxID1]);
+
+build_uri(hdstatus, Protocol, Network) ->
+    Url = "/data/~s/~s/status",
+    io_lib:format(Url, all_str([Protocol, Network])).
+
+build_uri(hdblock, Protocol, Network, BlockNumber) ->
+    Url = "/data/~s/~s/block/~s",
+    io_lib:format(Url, all_str([Protocol, Network, BlockNumber]));
+
+build_uri(hdtransaction, Protocol, Network, TxHash) ->
+    Url = "/data/~s/~s/transaction/~s",
+    io_lib:format(Url, all_str([Protocol, Network, TxHash]));
+
+build_uri(hdbalance, Protocol, Network, Address) ->
+    Url = "/data/~s/~s/balance/~s",
+    io_lib:format(Url, all_str([Protocol, Network, Address])).
+
+build_uri(hdtransactions, Protocol, Network, Address, Opts) ->
+    Url = "/data/~s/~s/transactions/~s",
+    Url1 = io_lib:format(Url, all_str([Protocol, Network, Address])),
+    maybe_append_qs_params(Url1, Opts).
 
 maybe_append_qs_params(Url, Params) ->
     case maps:size(Params) > 0 of
@@ -450,6 +515,14 @@ format_qs_param(K, V) -> io_lib:format("~s=~s", [K, V]).
 
 page(Count) ->
     #{"page_size" => Count}.
+
+all_str(Xs) ->
+    [upvest_utils:to_str(X) || X <- Xs].
+
+%% @doc unwraps nested 'result' key from the response object from historical data API
+hd_unwrap({ok, Result}) ->
+    {ok, maps:get(<<"result">>, Result)};
+hd_unwrap({error, _Error} = E) -> E.
 
 %% NOTE: these records are currently not used in deserializing the response from the server
 -spec to_record(upvest_object_name(), proplists:list()) -> upvest_object().

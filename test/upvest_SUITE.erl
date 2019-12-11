@@ -19,7 +19,8 @@ all() -> [{group, tenancy_tests}, {group, clientele_tests}].
 groups() ->
     [{tenancy_tests,
       [parallel],
-      [all_users, list_users, get_user, create_delete_user, all_assets, list_assets, get_asset]
+      [all_users, list_users, get_user, create_delete_user, all_assets, list_assets, get_asset,
+       get_hdblock, get_hdbalance, get_hdtransaction, get_hdtransactions, get_hdstatus]
      },
      {clientele_tests,
       [parallel],
@@ -39,7 +40,10 @@ init_per_suite(Config) ->
      {password, os:getenv("UPVEST_TEST_PASSWORD")},
      %% webhook
      {webhook_url, os:getenv("WEBHOOK_URL")},
-     {webhook_verification_url, os:getenv("WEBHOOK_VERIFICATION_URL")}
+     {webhook_verification_url, os:getenv("WEBHOOK_VERIFICATION_URL")},
+     %% historical API
+     {protocol, "ethereum"},
+     {network, "ropsten"}
      |Config].
 
 end_per_suite(_Config) ->
@@ -98,6 +102,53 @@ get_asset(Config) ->
     [Asset|_Rest] = Assets#paginated_list.results,
     %% use pattern match to assert match
     {ok, Asset} = upvest:get_asset(Cred, maps:get(<<"id">>, Asset)).
+
+%%%-------------------------------------------------------------------
+%%% Historical Data API
+%%%-------------------------------------------------------------------
+get_hdblock(Config) ->
+    Cred = ?config(keyauth, Config),
+    Protocol = ?config(protocol, Config),
+    Network = ?config(network, Config),
+    BlockNumber = <<"6570890">>,
+    {ok, Block} = upvest:get_hdblock(Cred, Protocol, Network, BlockNumber),
+    %% upattern match on block number
+    BlockNumber = maps:get(<<"number">>, Block).
+
+get_hdbalance(Config) ->
+    Cred = ?config(keyauth, Config),
+    Protocol = ?config(protocol, Config),
+    Network = ?config(network, Config),
+    Address = <<"0x93b3d0b2894e99c2934bed8586ea4e2b94ce6bfd">>,
+    {ok, Balance} = upvest:get_hdbalance(Cred, Protocol, Network, Address),
+    %% upattern match on the address
+    Address = maps:get(<<"address">>, Balance).
+
+get_hdtransaction(Config) ->
+    Cred = ?config(keyauth, Config),
+    Protocol = ?config(protocol, Config),
+    Network = ?config(network, Config),
+    TxHash = <<"0xa313aaad0b9b1fd356f7f42ccff1fa385a2f7c2585e0cf1e0fb6814d8bdb559a">>,
+    {ok, Transaction} = upvest:get_hdtransaction(Cred, Protocol, Network, TxHash),
+    %% upattern match on the transaction
+    TxHash1 = maps:get(<<"hash">>, Transaction),
+    TxHash = string:slice(TxHash1, 2).
+
+get_hdtransactions(Config) ->
+    Cred = ?config(keyauth, Config),
+    Protocol = ?config(protocol, Config),
+    Network = ?config(network, Config),
+    Address = <<"0x6590896988376a90326cb2f741cb4f8ace1882d5">>,
+    Opts = #txopts{confirmations=1000},
+    {ok, _Txs} = upvest:get_hdtransactions(Cred, Protocol, Network, Address, Opts).
+
+get_hdstatus(Config) ->
+    Cred = ?config(keyauth, Config),
+    Protocol = ?config(protocol, Config),
+    Network = ?config(network, Config),
+    {ok, Status} = upvest:get_hdstatus(Cred, Protocol, Network),
+    [<<"highest">>, <<"latest">>, <<"lowest">>] = lists:sort(maps:keys(Status)).
+
 
 %%%-------------------------------------------------------------------
 %%% Wallets
